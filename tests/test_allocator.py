@@ -146,6 +146,7 @@ def test_release_reservation_returns_stock_and_reopens_pending():
     assert item.available_qty == 5
     assert req.status == RequestStatus.PENDING
     assert req.project_id not in alloc.reserved
+    assert req.project_id in [r.project_id for r in alloc.pending_heap.to_list()]
 
 
 def test_admin_ordered_view_is_stable_merge_sort():

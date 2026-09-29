@@ -20,6 +20,7 @@ otherwise nothing is reserved and the whole request goes to Pending.
 from datetime import datetime
 
 from algo.merge_sort import merge_sort
+from app.db import Database
 from app.inventory import InventoryCatalog
 from app.models import (
     BorrowedRecord,
@@ -45,9 +46,15 @@ def _project_id(req: ProjectRequest):
 
 
 class Allocator:
-    def __init__(self, catalog: InventoryCatalog, notifier: Notifier | None = None):
+    def __init__(
+        self,
+        catalog: InventoryCatalog,
+        notifier: Notifier | None = None,
+        db: Database | None = None,
+    ):
         self.catalog = catalog
         self.notifier = notifier or ConsoleNotifier()
+        self.db = db
 
         self.main_heap: MinHeap[ProjectRequest] = MinHeap(_heap_key, _project_id)
         self.pending_heap: MinHeap[ProjectRequest] = MinHeap(_heap_key, _project_id)
@@ -56,13 +63,55 @@ class Allocator:
         self.damaged: SinglyLinkedList = SinglyLinkedList()
         self.all_requests: HashTable[str, ProjectRequest] = HashTable()
 
-        self._next_seq = 1
+        self._next_seq = db.load_next_sequence() if db else 1
+
+    @classmethod
+    def from_db(cls, db: Database, notifier: Notifier | None = None) -> "Allocator":
+        """Rebuild every in-memory ds/ structure from SQLite on startup.
+        The Main heap always starts empty: add_request()+process_main_queue()
+        run back-to-back within one call, so nothing should ever be left
+        sitting unprocessed in it between requests."""
+        catalog = InventoryCatalog()
+        catalog.bulk_load(db.load_inventory_items())
+        allocator = cls(catalog, notifier=notifier, db=db)
+
+        all_reqs = merge_sort(db.load_requests(), key_func=_project_id)
+        for req in all_reqs:
+            allocator.all_requests.put(req.project_id, req)
+            if req.status == RequestStatus.PENDING:
+                allocator.pending_heap.push(req)
+            elif req.status == RequestStatus.RESERVED:
+                allocator.reserved.put(req.project_id, req)
+
+        for record in db.load_borrowed():
+            allocator.borrowed.put(record.project_id, record)
+        for damage in db.load_damage():
+            allocator.damaged.append(damage)
+
+        return allocator
+
+    # -- persistence helpers ----------------------------------------------
+
+    def _persist_item(self, type_: str, item_name: str) -> None:
+        if self.db is None:
+            return
+        item = self.catalog.get(type_, item_name)
+        if item is not None:
+            self.db.save_inventory_item(item)
+
+    def _persist_items(self, lines: list[RequestLineItem]) -> None:
+        if self.db is None:
+            return
+        for line in lines:
+            self._persist_item(line.type, line.item_name)
 
     # -- request intake --------------------------------------------------
 
     def _generate_project_id(self) -> str:
         pid = f"P{self._next_seq:04d}"
         self._next_seq += 1
+        if self.db is not None:
+            self.db.save_next_sequence(self._next_seq)
         return pid
 
     def add_request(
@@ -92,6 +141,8 @@ class Allocator:
         )
         self.all_requests.put(req.project_id, req)
         self.main_heap.push(req)
+        if self.db is not None:
+            self.db.save_request(req)
         return req
 
     def submit_request(self, *args, **kwargs) -> ProjectRequest:
@@ -119,11 +170,16 @@ class Allocator:
             req.status = RequestStatus.RESERVED
             req.pending_reason = ""
             self.reserved.put(req.project_id, req)
+            self._persist_items(req.items)
+            if self.db is not None:
+                self.db.save_request_status(req)
             self.notifier.notify_ready(req)
         else:
             req.status = RequestStatus.PENDING
             req.pending_reason = "; ".join(shortages)
             self.pending_heap.push(req)
+            if self.db is not None:
+                self.db.save_request_status(req)
             self.notifier.notify_pending(req)
 
     def _find_shortages(self, req: ProjectRequest) -> list[str]:
@@ -157,6 +213,10 @@ class Allocator:
         )
         self.borrowed.put(project_id, record)
         req.status = RequestStatus.BORROWED
+        self._persist_items(req.items)
+        if self.db is not None:
+            self.db.save_request_status(req)
+            self.db.save_borrowed(record)
         return record
 
     def release_reservation(self, project_id: str) -> ProjectRequest:
@@ -170,6 +230,10 @@ class Allocator:
         req.status = RequestStatus.PENDING
         req.pending_reason = "Reservation manually released by admin"
         self.all_requests.put(req.project_id, req)
+        self.pending_heap.push(req)
+        self._persist_items(req.items)
+        if self.db is not None:
+            self.db.save_request_status(req)
         return req
 
     # -- returns ---------------------------------------------------------
@@ -187,12 +251,15 @@ class Allocator:
         record = self.borrowed.get(project_id)
         self._validate_return_matches_borrowed(record, return_items)
         self.borrowed.delete(project_id)
+        if self.db is not None:
+            self.db.delete_borrowed(project_id)
 
         now = datetime.now()
         new_damage: list[DamageRecord] = []
         for line in return_items:
             if line.condition == ItemCondition.GOOD:
                 self.catalog.restock_good(line.type, line.item_name, line.quantity)
+                self._persist_item(line.type, line.item_name)
             else:
                 damage = DamageRecord(
                     project_id=project_id,
@@ -204,10 +271,14 @@ class Allocator:
                 )
                 self.damaged.append(damage)
                 new_damage.append(damage)
+                if self.db is not None:
+                    self.db.save_damage(damage)
 
         req = self.all_requests.get(project_id)
         if req is not None:
             req.status = RequestStatus.RETURNED
+            if self.db is not None:
+                self.db.save_request_status(req)
 
         self.recheck_pending()
         return new_damage

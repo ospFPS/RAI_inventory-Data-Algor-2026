@@ -51,6 +51,16 @@ class InventoryCatalog:
         self._table.put(item.key, item)
         self._rebuild_sorted()
 
+    def bulk_load(self, items: list[InventoryItem], replace: bool = True) -> int:
+        """Load already-constructed items (e.g. rows read back from
+        SQLite on startup) without going through a CSV file."""
+        if replace:
+            self._table = HashTable()
+        for item in items:
+            self._table.put(item.key, item)
+        self._rebuild_sorted()
+        return len(items)
+
     def load_csv(self, path: str | Path, replace: bool = True) -> int:
         """Load rows of type,item_name,live_qty from a CSV file.
 
