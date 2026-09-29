@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="page-subtitle">Live snapshot of the RAI component inventory and request pipeline.</p>
+
+<div class="cards">
+    <div class="card">
+        <div class="metric">{{ available_types }}</div>
+        <div class="label">Available Items ({{ total_items }} total types)</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ reserved_units }}</div>
+        <div class="label">Reserved Units</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ pending_count }}</div>
+        <div class="label">Pending Requests</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ borrowed_count }}</div>
+        <div class="label">Borrowed Projects</div>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="panel">
+        <h2>Item Shortage (Low Stock / Out of Stock)</h2>
+        {% if shortage_items %}
+        <table>
+            <thead><tr><th>Type</th><th>Item</th><th>Available</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for item in shortage_items %}
+                <tr>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.item_name }}</td>
+                    <td>{{ item.available_qty }} / {{ item.live_qty }}</td>
+                    <td>
+                        {% if item.status.value == "Out of Stock" %}
+                            <span class="badge badge-out">Out of Stock</span>
+                        {% else %}
+                            <span class="badge badge-low">Low Stock</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No items are running low right now.</div>
+        {% endif %}
+    </div>
+    <div class="panel">
+        <h2>Readiness for analysis</h2>
+        <table>
+            <tbody>
+                <tr><td>Remaining stock (all types)</td><td><strong>{{ remaining_stock }}</strong> units</td></tr>
+                <tr><td>Items needing attention</td><td><strong>{{ shortage_items|length }}</strong></td></tr>
+                <tr><td>Projects awaiting pickup</td><td><strong>{{ reserved_projects }}</strong> reserved</td></tr>
+            </tbody>
+        </table>
+        <p class="page-subtitle" style="margin-top:16px;">See <a href="/admin">Admin View</a> for the full priority-ordered request list.</p>
+    </div>
+</div>
+{% endblock %}

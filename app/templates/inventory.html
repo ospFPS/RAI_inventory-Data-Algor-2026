@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Inventory · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Inventory</h1>
+<p class="page-subtitle">Hash-table lookup for exact matches, binary search over the sorted catalog for name search.</p>
+
+<form method="get" action="/inventory" class="search-row">
+    <input type="text" name="q" placeholder="Search by item name..." value="{{ q }}">
+    <select name="type">
+        <option value="">All types</option>
+        {% for t in types %}
+        <option value="{{ t }}" {{ "selected" if t == selected_type }}>{{ t }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn" type="submit">Search</button>
+</form>
+
+<div class="panel">
+    <table>
+        <thead><tr><th>Type</th><th>Item</th><th>Live</th><th>Reserved</th><th>Available</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td>{{ item.type }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.live_qty }}</td>
+                <td>{{ item.reserved_qty }}</td>
+                <td>{{ item.available_qty }}</td>
+                <td>
+                    {% if item.status.value == "Available" %}
+                        <span class="badge badge-available">Available</span>
+                    {% elif item.status.value == "Low Stock" %}
+                        <span class="badge badge-low">Low Stock</span>
+                    {% else %}
+                        <span class="badge badge-out">Out of Stock</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">No items match your search.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

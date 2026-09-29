@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Admin View · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Admin Priority View</h1>
+<p class="page-subtitle">Every request, ordered by merge sort on (pick-up date, submission time) — the same priority order the queue uses.</p>
+
+<div class="panel">
+    <table>
+        <thead><tr><th>Rank</th><th>Project ID</th><th>Name</th><th>Pick-up date</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for req, priority in rows %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ req.project_id }}</td>
+                <td>{{ req.project_name }} <span class="meta" style="color:var(--text-muted); font-size:12px;">({{ req.group }})</span></td>
+                <td>{{ req.pick_up_date }}</td>
+                <td>
+                    {% if priority == "High" %}<span class="badge badge-high">High</span>
+                    {% elif priority == "Medium" %}<span class="badge badge-medium">Medium</span>
+                    {% else %}<span class="badge badge-neutral">Low</span>{% endif %}
+                </td>
+                <td>
+                    {% if req.status.value == "Reserved" %}<span class="badge badge-available">Reserved</span>
+                    {% elif req.status.value == "Pending" %}<span class="badge badge-low">Pending</span>
+                    {% elif req.status.value == "Borrowed" %}<span class="badge badge-neutral">Borrowed</span>
+                    {% else %}<span class="badge badge-neutral">Returned</span>{% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">No requests submitted yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

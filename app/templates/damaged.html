@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Damaged Items · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Damaged Items</h1>
+<p class="page-subtitle">Append-only log (Singly Linked List) of items returned in damaged condition. These never re-enter usable stock.</p>
+
+<div class="panel">
+    <table>
+        <thead><tr><th>Project</th><th>Type</th><th>Item</th><th>Qty</th><th>Reported</th><th>Note</th></tr></thead>
+        <tbody>
+        {% for record in records %}
+            <tr>
+                <td>{{ record.project_id }}</td>
+                <td>{{ record.type }}</td>
+                <td>{{ record.item_name }}</td>
+                <td><span class="badge badge-damaged">{{ record.quantity }}</span></td>
+                <td>{{ record.reported_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                <td>{{ record.note }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">No damaged items reported.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
