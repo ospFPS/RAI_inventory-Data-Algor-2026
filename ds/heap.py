@@ -73,6 +73,13 @@ class MinHeap(Generic[T]):
             heap._sift_down(i)
         return heap
 
+    def to_list(self) -> list[T]:
+        """Non-destructive O(n) snapshot of payloads in internal array
+        order (heap-ordered, but *not* fully sorted). Callers that need
+        a fully priority-ordered listing for display should sort this
+        with algo.merge_sort rather than relying on array order."""
+        return [node.payload for node in self._items]
+
     def peek(self) -> T:
         if not self._items:
             raise IndexError("peek from an empty heap")
