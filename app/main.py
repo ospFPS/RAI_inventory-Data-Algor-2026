@@ -26,6 +26,7 @@ from app.models import (
     RequestLineItem,
     ReturnLineItem,
 )
+from app.notifications import notifier_from_env
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.environ.get("RAI_DB_PATH", os.path.join(BASE_DIR, "data", "app.db"))
@@ -35,13 +36,14 @@ SEED_CSV = os.environ.get("RAI_SEED_CSV", os.path.join(BASE_DIR, "data", "invent
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db = Database(DB_PATH)
+    notifier = notifier_from_env()
     if db.load_inventory_items():
-        allocator = Allocator.from_db(db)
+        allocator = Allocator.from_db(db, notifier=notifier)
     else:
         catalog = InventoryCatalog()
         catalog.load_csv(SEED_CSV)
         db.save_inventory_items(catalog.all_items())
-        allocator = Allocator(catalog, db=db)
+        allocator = Allocator(catalog, notifier=notifier, db=db)
     app.state.db = db
     app.state.allocator = allocator
     yield
