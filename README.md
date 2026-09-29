@@ -77,6 +77,21 @@ the Main Min-Heap, shows the Reserved/Pending split and the merge-sorted admin
 view, confirms a handover, then processes a return (one good, one damaged) and
 shows the previously-Pending request get satisfied.
 
+## Algorithm demonstrations
+
+```bash
+python binary_search_demo.py
+python merge_sort_demo.py
+```
+
+Standalone, dependency-free walkthroughs of the two required algorithms
+against mock data, with every result checked against a plain-Python oracle
+(linear scan for binary search, `sorted()` for merge sort) and printed
+PASS/FAIL as it goes -- including edge cases (empty/single-element input,
+duplicates, already-sorted input), a 200-trial randomized stress test each,
+and for merge sort a stability demo mirroring the admin priority view's
+same-pick-up-date tie-break.
+
 ## Tests
 
 ```bash
@@ -133,6 +148,8 @@ benchmarks/          operation-counting benchmarks + charts (section 11)
 tests/               pytest suite (105 tests)
 data/                inventory_seed.csv (~200 items) and app.db (git-ignored)
 cli_demo.py          terminal walkthrough of the borrow/return workflow
+binary_search_demo.py  standalone binary search demo vs a linear-search oracle
+merge_sort_demo.py     standalone merge sort demo vs the sorted() oracle
 ```
 
 See [`DECISIONS.md`](DECISIONS.md) for choices that fill in the brief's open
