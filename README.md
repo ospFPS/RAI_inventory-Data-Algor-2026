@@ -92,6 +92,16 @@ duplicates, already-sorted input), a 200-trial randomized stress test each,
 and for merge sort a stability demo mirroring the admin priority view's
 same-pick-up-date tie-break.
 
+Need something that runs completely on its own -- no repo, no venv, not
+even a `git clone`, just the Python standard library? `standalone_demo.py`
+is the same two demonstrations combined into one file with the algorithms
+copied inline instead of imported from `algo/`, so it runs unmodified from
+any directory on any machine with Python 3.11+:
+
+```bash
+python standalone_demo.py
+```
+
 ## Tests
 
 ```bash
@@ -148,8 +158,9 @@ benchmarks/          operation-counting benchmarks + charts (section 11)
 tests/               pytest suite (105 tests)
 data/                inventory_seed.csv (~200 items) and app.db (git-ignored)
 cli_demo.py          terminal walkthrough of the borrow/return workflow
-binary_search_demo.py  standalone binary search demo vs a linear-search oracle
-merge_sort_demo.py     standalone merge sort demo vs the sorted() oracle
+binary_search_demo.py  binary search demo vs a linear-search oracle (imports algo/)
+merge_sort_demo.py     merge sort demo vs the sorted() oracle (imports algo/)
+standalone_demo.py     both demos combined, algorithms inlined -- zero dependencies
 ```
 
 See [`DECISIONS.md`](DECISIONS.md) for choices that fill in the brief's open
