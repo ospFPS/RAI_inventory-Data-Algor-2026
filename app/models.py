@@ -97,6 +97,19 @@ class BorrowedRecord:
 
 
 @dataclass
+class ReturnLineItem:
+    """One line of a return: how much of one borrowed item came back in
+    a given condition. A single borrowed item can be split across two
+    ReturnLineItems (e.g. 3 good + 2 damaged out of 5 borrowed)."""
+
+    type: str
+    item_name: str
+    quantity: int
+    condition: ItemCondition
+    note: str = ""
+
+
+@dataclass
 class DamageRecord:
     project_id: str
     type: str

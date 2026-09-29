@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 from algo.merge_sort import merge_sort
 from app.allocator import Allocator
 from app.inventory import InventoryCatalog
-from app.models import RequestLineItem
+from app.models import ItemCondition, RequestLineItem, ReturnLineItem
 
 
 def line(*parts):
@@ -106,12 +106,16 @@ def main():
             f"{req.project_name}"
         )
 
-    section("Confirming handover for the earliest-priority reserved project")
-    reserved_ordered = merge_sort(list(allocator.reserved.values()), key_func=lambda r: r.heap_key)
-    if reserved_ordered:
-        target = reserved_ordered[0].project_id
-        record = allocator.confirm_handover(target)
-        line(f"  Handed over {record.project_id} ({record.project_name}) at {record.handed_over_at}")
+    section("Confirming handover for the project holding the scarce sensor")
+    # P0001 (Line-Following Bot) is the one holding the scarce sensor;
+    # P0003 has the earlier pick-up date but doesn't touch that item.
+    holder = next(
+        r for r in allocator.reserved.values()
+        if any(i.type == scarce_type and i.item_name == scarce_name for i in r.items)
+    )
+    target = holder.project_id
+    record = allocator.confirm_handover(target)
+    line(f"  Handed over {record.project_id} ({record.project_name}) at {record.handed_over_at}")
 
     section("Inventory after handover")
     item = catalog.get(scarce_type, scarce_name)
@@ -120,6 +124,37 @@ def main():
     section("Borrowed table")
     for pid, record in allocator.borrowed.items():
         line(f"  {pid}: {record.project_name} handed over {record.handed_over_at}")
+
+    section(f"Returning {target}: 1 good, 1 damaged")
+    damage_records = allocator.process_return(
+        target,
+        [
+            ReturnLineItem("Control", "Arduino Uno R3", 1, ItemCondition.GOOD),
+            ReturnLineItem(scarce_type, scarce_name, 1, ItemCondition.GOOD),
+            ReturnLineItem(scarce_type, scarce_name, 1, ItemCondition.DAMAGED, note="cracked housing"),
+        ],
+    )
+    line(f"  Logged {len(damage_records)} damage record(s) to the linked list")
+
+    section("Pending after return (partial restock: only 1 unit came back good)")
+    pending_ordered = merge_sort(allocator.pending_heap.to_list(), key_func=lambda r: r.heap_key)
+    if pending_ordered:
+        for req in pending_ordered:
+            line(f"  {req.project_id} {req.project_name!r} -> still PENDING: {req.pending_reason}")
+    else:
+        for req in allocator.reserved.values():
+            line(f"  {req.project_id} {req.project_name!r} -> now RESERVED (stock freed by the return)")
+
+    section("Damaged items log (Singly Linked List, append-only)")
+    for record in allocator.damaged:
+        line(f"  {record.project_id}: {record.quantity}x {record.item_name} ({record.note})")
+
+    item = catalog.get(scarce_type, scarce_name)
+    line()
+    line(
+        f"Final {scarce_name}: live={item.live_qty} reserved={item.reserved_qty} "
+        f"available={item.available_qty} status={item.status.value}"
+    )
 
 
 if __name__ == "__main__":

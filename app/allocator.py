@@ -21,7 +21,15 @@ from datetime import datetime
 
 from algo.merge_sort import merge_sort
 from app.inventory import InventoryCatalog
-from app.models import BorrowedRecord, ProjectRequest, RequestLineItem, RequestStatus
+from app.models import (
+    BorrowedRecord,
+    DamageRecord,
+    ItemCondition,
+    ProjectRequest,
+    RequestLineItem,
+    RequestStatus,
+    ReturnLineItem,
+)
 from app.notifications import ConsoleNotifier, Notifier
 from ds.hashtable import HashTable
 from ds.heap import MinHeap
@@ -163,6 +171,78 @@ class Allocator:
         req.pending_reason = "Reservation manually released by admin"
         self.all_requests.put(req.project_id, req)
         return req
+
+    # -- returns ---------------------------------------------------------
+
+    def process_return(
+        self, project_id: str, return_items: list[ReturnLineItem]
+    ) -> list[DamageRecord]:
+        """Return workflow (section 6.2): validate the return accounts
+        for exactly what was borrowed, restock good-condition items,
+        log damaged ones to the Damage linked list (never restocked),
+        remove the project from Borrowed, then re-check the Pending
+        heap since stock just changed."""
+        if project_id not in self.borrowed:
+            raise KeyError(f"project not in Borrowed state: {project_id}")
+        record = self.borrowed.get(project_id)
+        self._validate_return_matches_borrowed(record, return_items)
+        self.borrowed.delete(project_id)
+
+        now = datetime.now()
+        new_damage: list[DamageRecord] = []
+        for line in return_items:
+            if line.condition == ItemCondition.GOOD:
+                self.catalog.restock_good(line.type, line.item_name, line.quantity)
+            else:
+                damage = DamageRecord(
+                    project_id=project_id,
+                    type=line.type,
+                    item_name=line.item_name,
+                    quantity=line.quantity,
+                    reported_at=now,
+                    note=line.note,
+                )
+                self.damaged.append(damage)
+                new_damage.append(damage)
+
+        req = self.all_requests.get(project_id)
+        if req is not None:
+            req.status = RequestStatus.RETURNED
+
+        self.recheck_pending()
+        return new_damage
+
+    @staticmethod
+    def _validate_return_matches_borrowed(
+        record: BorrowedRecord, return_items: list[ReturnLineItem]
+    ) -> None:
+        borrowed_totals: dict[tuple[str, str], int] = {}
+        for line in record.items:
+            key = (line.type, line.item_name)
+            borrowed_totals[key] = borrowed_totals.get(key, 0) + line.quantity
+
+        returned_totals: dict[tuple[str, str], int] = {}
+        for line in return_items:
+            key = (line.type, line.item_name)
+            returned_totals[key] = returned_totals.get(key, 0) + line.quantity
+
+        if borrowed_totals != returned_totals:
+            raise ValueError(
+                f"return for {record.project_id} does not match what was "
+                f"borrowed: borrowed={borrowed_totals} returned={returned_totals}"
+            )
+
+    def recheck_pending(self) -> None:
+        """Re-run every Pending project against current stock, in
+        priority order, after a return frees up inventory. Items that
+        still can't be fully satisfied go back onto a fresh Pending
+        heap (draining and refilling the same heap in place would risk
+        re-popping an item we just re-pushed within this same pass)."""
+        still_pending_snapshot = self.pending_heap.to_list()
+        self.pending_heap = MinHeap(_heap_key, _project_id)
+        ordered = merge_sort(still_pending_snapshot, key_func=_heap_key)
+        for req in ordered:
+            self._try_reserve_or_pend(req)
 
     # -- admin view ----------------------------------------------------
 
