@@ -59,6 +59,18 @@ required comparisons have something to compare against, and are never used
 by the app itself. `algo/` only contains the two algorithms the brief
 actually requires (binary search, merge sort).
 
+## `live_qty` means "currently on the shelf," not "total ever owned"
+Section 6.1 step 5 is explicit: on handover confirmation "the system
+reduces live stock via the Hash Table" — so `live_qty` drops when an item
+is checked out and rises again on a good return (`InventoryItem` in
+`app/models.py`; `available_qty` is always exactly `live_qty -
+reserved_qty`, enforced structurally). Section 15's checklist line "live =
+reserved + available + issued out" reads as if `live_qty` instead means a
+constant total-owned count that issued-out items still count toward,
+which would contradict step 5. We followed the explicit workflow step
+over the checklist's parenthetical, consistent with section 12's
+instruction to resolve inconsistencies rather than copy them.
+
 ## Project ID format
 `P0001`, `P0002`, ... — a zero-padded sequence counter persisted in SQLite
 (`next_sequence` table) so IDs stay stable and readable across restarts,
