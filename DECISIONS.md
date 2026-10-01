@@ -1,77 +1,286 @@
-# Decisions
+﻿# Decisions
 
-Choices that fill in the brief's open questions (section 13) or otherwise
-deviate from / add detail beyond a literal reading of it.
+This file records implementation decisions for the current `frontend/` + `backend/` architecture and explains where the implementation adds detail beyond the original requirement.
 
-## Stack (section 10)
-Confirmed with the team at the start: **FastAPI + SQLite + Jinja2/HTMX**
-(not the React/Vite alternative also suggested in the brief) — one language,
-simpler to build and demo, keeps the DSA logic front-and-center rather than
-behind a JSON API split across two dev servers.
+## 1. Application Stack
 
-## Section 13 open questions — used the stated defaults
-- Priority: pick-up date, then submission time (tie-break) only.
-- Reservation is all-or-nothing; a request with *any* short item goes
-  entirely to Pending — nothing is partially reserved.
-- An uncollected reservation is released manually by the admin (no
-  automatic expiry).
-- Inventory source is the seeded CSV (`data/inventory_seed.csv`).
-- Auth is two hard-coded roles (Student/Admin) selectable at login, via a
-  plain cookie — no passwords, no real session security. Admin-only
-  mutations (confirm handover, release reservation, process return) are
-  enforced server-side (403 for students), not just hidden in the UI.
+The project uses:
 
-## A third hash table for "Reserved, awaiting handover"
-The brief names a Main heap, a Pending heap, an Inventory hash table, and a
-Borrowed hash table, but the borrow workflow (section 6.1) has a state in
-between "reserved" and "handed over" that needs to be listed and searched
-by the admin before confirming pickup. Rather than inventing a sixth
-structure, `Allocator.reserved` reuses the same hand-implemented
-`HashTable`, keyed by Project ID — the same pattern as `borrowed`.
+- **FastAPI** for the web backend/routes.
+- **Jinja2 + HTMX-style server-rendered pages** for the frontend.
+- **SQLite** for persistent storage.
+- **openpyxl** to read the real RAI inventory workbook.
 
-## Return is all-at-once per project
-`process_return()` requires the returned line items to sum to *exactly*
-what that project borrowed (validated before any state changes). The brief
-describes a student physically returning items and the admin looking the
-project up once in the Borrowed table (section 6.2); it doesn't describe a
-partial/staged return spread across multiple confirmations, so we didn't
-build one. A rejected return (quantity mismatch) leaves Borrowed state and
-inventory untouched.
+The project is intentionally kept as one Python application so the required Data Structures and Algorithms remain easy to inspect and explain.
 
-## Low-stock threshold and admin priority labels
-Not specified anywhere in the brief. `InventoryItem.status` treats an item
-as **Low Stock** once `available_qty <= max(2, live_qty * 0.2)` (see
-`app/models.py`). The Admin View's High/Medium/Low priority badge is based
-on days until pick-up: High `<= 1` day, Medium `<= 3` days, Low otherwise
-(`app/main.py:priority_label`). Both are simple, documented, easy to change.
+## 2. Frontend / Backend Split
 
-## Hash function
-`ds/hashtable.py` uses a hand-rolled FNV-1a over `repr(key)`, not Python's
-built-in `hash()` — the brief asks the structures to be hand-implemented
-end to end, and a hash table built on the language's own hash function
-would leave the one property (`comparisons/shifts/probes`, section 11)
-that's actually being graded implemented by someone else.
+The repository is now organized as:
 
-## Baseline algorithms for the benchmarks (section 11) are not graded DSA
-`benchmarks/baselines.py` has simple unsorted/sorted-array helpers and
-bubble/selection/insertion/quicksort — these exist purely so the four
-required comparisons have something to compare against, and are never used
-by the app itself. `algo/` only contains the two algorithms the brief
-actually requires (binary search, merge sort).
+```text
+frontend/
+  templates/
+  static/
 
-## `live_qty` means "currently on the shelf," not "total ever owned"
-Section 6.1 step 5 is explicit: on handover confirmation "the system
-reduces live stock via the Hash Table" — so `live_qty` drops when an item
-is checked out and rises again on a good return (`InventoryItem` in
-`app/models.py`; `available_qty` is always exactly `live_qty -
-reserved_qty`, enforced structurally). Section 15's checklist line "live =
-reserved + available + issued out" reads as if `live_qty` instead means a
-constant total-owned count that issued-out items still count toward,
-which would contradict step 5. We followed the explicit workflow step
-over the checklist's parenthetical, consistent with section 12's
-instruction to resolve inconsistencies rather than copy them.
+backend/
+  main.py
+  allocator.py
+  inventory.py
+  models.py
+  notifications.py
+  algor/
+  data_struct/
+  db/
+```
 
-## Project ID format
-`P0001`, `P0002`, ... — a zero-padded sequence counter persisted in SQLite
-(`next_sequence` table) so IDs stay stable and readable across restarts,
-well within the 50–75 request scope.
+The old top-level `app/`, `algo/`, `ds/`, `data/`, and `benchmarks/` folders were removed after the new structure was verified.
+
+## 3. DSA Source of Truth
+
+The simple manual implementations in `test algor_data/` are the proof/demo versions used to show how each required structure and algorithm works.
+
+The production files use the same core logic, with manual test code removed:
+
+```text
+test algor_data/Algorithms/min_heaps.py
+    -> backend/data_struct/min_heap.py
+
+test algor_data/Data_Structure/hashtable.py
+    -> backend/data_struct/hash_table.py
+
+test algor_data/Data_Structure/linked_list.py
+    -> backend/data_struct/linked_list.py
+
+test algor_data/Algorithms/binary_search.py
+    -> backend/algor/binary_search.py
+
+test algor_data/Algorithms/merge_sort.py
+    -> backend/algor/merge_sort.py
+```
+
+The website does not import the manual test scripts directly because those scripts contain `input()`, `print()`, and mock data.
+
+## 4. Priority Rule
+
+Project priority is:
+
+1. Earlier requested pickup date.
+2. If pickup dates are equal, earlier submission/request order.
+
+This rule is used by the Main Min-Heap and Pending Min-Heap.
+
+## 5. Main and Pending Min-Heaps
+
+Every new request enters the Main Min-Heap first.
+
+The Main Min-Heap processes requests in priority order and performs an inventory readiness check. Requests then move to the Pending Min-Heap for admin handling.
+
+When the admin views Pending requests, the backend checks them in priority order and identifies the highest-priority request that currently has enough stock.
+
+A higher-priority request that is short on stock remains Pending; a lower-priority request may proceed only if it is the highest-priority request that can actually be fulfilled.
+
+## 6. Admin Approval Is the Reservation Gate
+
+The current website requires admin approval before stock is reserved.
+
+Therefore:
+
+```text
+Submit
+  -> Main Min-Heap
+  -> Pending Min-Heap
+  -> Admin approval
+  -> Reserved
+  -> Handover
+  -> Borrowed
+```
+
+This is an implementation decision added to make physical stock control safer and easier to demonstrate. The original requirement describes automatic reservation more directly; the current application adds explicit admin approval before reservation.
+
+## 7. Reservation Is All-or-Nothing
+
+A project is only approved when all requested item quantities are available.
+
+The system does not partially reserve a request. If any required item is short, the project remains Pending.
+
+## 8. Min-Heap Implementation
+
+`backend/data_struct/min_heap.py` uses an array-backed binary Min-Heap with the same straightforward logic demonstrated in the manual test version:
+
+- `insert()`
+- `_heapify_up()`
+- `extract_min()`
+- `remove_project()`
+- `_heapify_down()`
+
+`remove_project()` performs a linear search for the requested Project ID and then restores heap order. This is intentionally simpler and easier to explain than the previous position-map implementation.
+
+## 9. Hash Table Implementation
+
+`backend/data_struct/hash_table.py` uses **separate chaining**.
+
+Each bucket stores linked `HashNode` objects:
+
+```text
+Bucket
+  -> HashNode
+  -> HashNode
+  -> None
+```
+
+The hash function follows the same simple style as the manual test implementation:
+
+```text
+sum(ord(character) for character in str(key)) % table_size
+```
+
+The production table is generalized to store arbitrary `key -> value` pairs so the same structure can support:
+
+- Inventory.
+- Reserved projects.
+- Borrowed projects.
+- All requests.
+
+## 10. Inventory Representation
+
+Inventory records keep:
+
+- Type.
+- Item name.
+- Live quantity.
+- Reserved quantity.
+
+Available quantity is:
+
+```text
+available = live_qty - reserved_qty
+```
+
+Exact workflow lookups use the custom Hash Table.
+
+The student-facing search also keeps a sorted inventory list so Binary Search can be demonstrated and used.
+
+## 11. Binary Search
+
+`backend/algor/binary_search.py` contains the hand-written Binary Search logic used by inventory searching.
+
+The code repeatedly divides the sorted search range in half using:
+
+```text
+middle = (left + right) // 2
+```
+
+The production file also contains lower/upper-bound helpers because the website supports prefix-style inventory search.
+
+## 12. Merge Sort
+
+`backend/algor/merge_sort.py` contains the hand-written recursive Merge Sort.
+
+It is used for:
+
+- Admin ordered project views.
+- Sorted inventory rebuilding.
+- Other ordered display lists where the application needs a deterministic order.
+
+The application does not rely on Python `sorted()` for the required Merge Sort demonstration path.
+
+## 13. Damaged Items
+
+Damaged returns are not put back into usable stock.
+
+They are appended to the custom Singly Linked List in:
+
+```text
+backend/data_struct/linked_list.py
+```
+
+Conceptually:
+
+```text
+HEAD -> DamageNode -> DamageNode -> NULL
+```
+
+A good return increases live inventory. A damaged return only creates a damage record.
+
+## 14. Borrowed and Reserved Hash Tables
+
+The original requirement directly calls for an Inventory Hash Table and Borrowed Hash Table.
+
+The application also uses a Reserved Hash Table because there is a real workflow state between admin approval and physical handover.
+
+Both are keyed by Project ID.
+
+## 15. Return Is Processed Per Project
+
+A return must account for exactly the quantities originally borrowed by that project before state is changed.
+
+Returned units may be split into:
+
+- Good quantity.
+- Damaged quantity.
+
+Good units return to inventory. Damaged units go to the Damage Linked List.
+
+After a return, Pending requests are checked again because stock may now be available.
+
+## 16. SQLite Persistence
+
+SQLite is the durable copy of application state:
+
+```text
+backend/db/app.db
+```
+
+The custom Data Structures are the in-memory working structures. On application startup, the backend loads SQLite data and rebuilds:
+
+- Pending Min-Heap.
+- Reserved Hash Table.
+- Borrowed Hash Table.
+- All-request Hash Table.
+- Damage Singly Linked List.
+
+## 17. Real Inventory Source
+
+The real inventory workbook is:
+
+```text
+backend/db/Database_inven_RAI.xlsx
+```
+
+The database currently contains the imported real inventory data.
+
+## 18. Project IDs
+
+Project IDs use a readable zero-padded sequence:
+
+```text
+P0001
+P0002
+P0003
+```
+
+The next sequence value is stored in SQLite so IDs continue correctly after restart.
+
+## 19. Authentication Scope
+
+The course/demo application uses two selectable roles:
+
+- Student.
+- Admin.
+
+The role is stored using a simple cookie. This is not intended to be production-grade authentication.
+
+## 20. Notifications
+
+The backend supports:
+
+- Console notifications for development/demo.
+- SMTP notifications when email environment variables are configured.
+
+The allocation workflow talks to the notifier interface rather than directly to SMTP.
+
+## 21. Benchmarks Folder Removed
+
+The old `benchmarks/` folder was removed during the architecture cleanup because the current project focus is the five required implementations plus the working web application.
+
+The manual proof code remains in `test algor_data/`.

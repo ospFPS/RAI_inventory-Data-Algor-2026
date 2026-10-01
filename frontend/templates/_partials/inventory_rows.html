@@ -1,0 +1,19 @@
+﻿{% for item in items %}
+<tr class="{{ 'stock-out-row' if item.status.value == 'Out of Stock' else '' }}">
+    <td>{{ item.type }}</td>
+    <td>{{ item.item_name }}</td>
+    <td>{{ item.live_qty }}</td>
+    <td>{{ item.reserved_qty }}</td>
+    <td>{{ item.available_qty }}</td>
+    <td>
+        {% if item.status.value == "Out of Stock" %}
+            <span class="badge badge-out">Out of Stock</span>
+        {% else %}
+            <span class="badge badge-available">Available</span>
+        {% endif %}
+    </td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="empty-state">No items match your search.</td></tr>
+{% endfor %}
+

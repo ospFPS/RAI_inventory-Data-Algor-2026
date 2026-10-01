@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Inventory · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Inventory</h1>
+<p class="page-subtitle">Hash-table lookup for exact matches, binary search over the sorted catalog for name search.</p>
+
+<form method="get" action="/inventory" class="search-row" id="inventory-filter-form">
+    <input type="text" name="q" placeholder="Search by item name..." value="{{ q }}">
+    <select name="type" id="inventory-type" onchange="this.form.submit()">
+        <option value="">All types</option>
+        {% for t in types %}
+        <option value="{{ t }}" {{ "selected" if t == selected_type }}>{{ t }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn" type="submit">Search</button>
+</form>
+
+<div class="panel">
+    <table class="responsive-table inventory-table">
+        <thead><tr><th>Type</th><th>Item</th><th>Live</th><th>Reserved</th><th>Available</th><th>Status</th></tr></thead>
+        <tbody id="inventory-results">
+            {% include "_partials/inventory_rows.html" %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

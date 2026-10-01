@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RAI Item Allocator{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+    <div class="app-shell">
+        {% if active_nav != "login" %}
+        <header class="topbar">
+            <div class="topbar-inner">
+                <div class="top-brand" aria-label="KMITL RAI Item Allocator">
+                    <img src="/static/logo.png" alt="KMITL logo" class="brand-logo">
+                    <span class="brand-tagline">Priorities always come first</span>
+                </div>
+
+                <nav class="top-nav" aria-label="Main navigation">
+                    {% if role == "admin" %}
+                    <a href="/dashboard" class="{{ 'active' if active_nav == 'dashboard' }}">Dashboard</a>
+                    <a href="/inventory" class="{{ 'active' if active_nav == 'inventory' }}">Inventory</a>
+                    <a href="/pending" class="{{ 'active' if active_nav == 'pending' }}">Pending</a>
+                    <a href="/borrowed" class="{{ 'active' if active_nav == 'borrowed' }}">Borrowed</a>
+                    <a href="/returns" class="{{ 'active' if active_nav == 'returns' }}">Returns</a>
+                    <a href="/damaged" class="{{ 'active' if active_nav == 'damaged' }}">Damaged</a>
+                    <a href="/admin/daily-summary" class="{{ 'active' if active_nav == 'reports' }}">Reports</a>
+                    {% else %}
+                    <a href="/new-request" class="{{ 'active' if active_nav == 'new_request' }}">New Request</a>
+                    <a href="/inventory" class="{{ 'active' if active_nav == 'inventory' }}">Inventory</a>
+                    <a href="/returns" class="{{ 'active' if active_nav == 'returns' }}">Return</a>
+                    {% endif %}
+                </nav>
+
+                <div class="top-role">
+                    <span class="role-pill">{{ "Admin" if role == "admin" else "Student" }}</span>
+                    <a href="/login" class="role-switch">Switch role</a>
+                </div>
+            </div>
+        </header>
+        {% endif %}
+
+        <main class="content {{ 'login-content' if active_nav == 'login' else '' }}">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

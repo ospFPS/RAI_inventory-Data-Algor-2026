@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Login · RAI Item Allocator{% endblock %}
+{% block content %}
+<div class="login-shell">
+    <div class="login-card">
+        <div class="login-brand"><img src="/static/logo.png" alt="KMITL logo" class="login-logo"></div>
+        <h1>Item Allocator</h1>
+        <p class="page-subtitle">Select a role to continue.</p>
+        <form method="post" action="/login" class="role-choice">
+            <button class="btn role-button" type="submit" name="chosen_role" value="student">
+                <span class="role-button-title">Student</span>
+                <span class="role-button-subtitle">Create a new request or return borrowed items</span>
+            </button>
+            <button class="btn secondary role-button" type="submit" name="chosen_role" value="admin">
+                <span class="role-button-title">Admin</span>
+                <span class="role-button-subtitle">Manage inventory, requests, handovers and returns</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

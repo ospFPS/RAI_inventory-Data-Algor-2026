@@ -1,0 +1,2 @@
+﻿& "D:\RAI\Data&algor proj\.venv\Scripts\uvicorn.exe" backend.main:app --reload
+http://127.0.0.1:8000

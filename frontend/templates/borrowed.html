@@ -1,0 +1,53 @@
+﻿{% extends "base.html" %}
+{% block title %}Reserved & Borrowed · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Reserved / Borrowed Tracking</h1>
+<p class="page-subtitle">Available requests are reserved first. Stock is reduced only when the student physically collects the items.</p>
+
+<div class="panel">
+    <h2>Ready for Pickup (Reserved)</h2>
+    <p class="page-subtitle">These items are reserved for the project and are not available to other requests.</p>
+    <table class="responsive-table reserved-table">
+        <thead><tr><th>Project</th><th>Student</th><th>Pick-up Date</th><th>Items</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for req in reserved_records %}
+            <tr>
+                <td><strong>{{ req.project_id }}</strong> — {{ req.project_name }}</td>
+                <td>{{ req.student_name }}{% if req.student_id %}<div class="meta">ID: {{ req.student_id }}</div>{% endif %}</td>
+                <td>{{ req.pick_up_date }}</td>
+                <td>{% for line in req.items %}{{ line.item_name }} ({{ line.quantity }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+                <td><span class="badge badge-available">Reserved</span></td>
+                <td>
+                    <form method="post" action="/reserved/{{ req.project_id }}/confirm-handover">
+                        <button class="btn small" type="submit">Confirm Student Collected</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">No projects are waiting for pickup.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="panel">
+    <h2>Currently Borrowed</h2>
+    <table class="responsive-table borrowed-table">
+        <thead><tr><th>Project</th><th>Student</th><th>Group</th><th>Items</th><th>Handed over</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for record in records %}
+            <tr>
+                <td>{{ record.project_id }} — {{ record.project_name }}</td>
+                <td>{{ record.student_name or "—" }}{% if record.student_id %}<div class="meta">ID: {{ record.student_id }}</div>{% endif %}</td>
+                <td>{{ record.group }}</td>
+                <td>{% for line in record.items %}{{ line.item_name }} ({{ line.quantity }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+                <td>{{ record.handed_over_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                <td><a class="btn small" href="/returns?project_id={{ record.project_id }}">Process Return</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">Nothing currently borrowed.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

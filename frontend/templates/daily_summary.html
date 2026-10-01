@@ -1,0 +1,71 @@
+﻿{% extends "base.html" %}
+{% block title %}Daily Activity Summary · RAI Item Allocator{% endblock %}
+{% block content %}
+<div class="report-page">
+    <div class="report-toolbar">
+        <div>
+            <h1>Daily Activity Summary</h1>
+        </div>
+    </div>
+
+    <form method="get" action="/admin/daily-summary.docx" class="report-date-form">
+        <div>
+            <label for="date_value">Report date</label>
+            <input type="date" id="date_value" name="date_value" value="{{ report_date }}">
+        </div>
+        <button class="btn" type="submit">Generate Word Summary</button>
+    </form>
+
+    <div class="cards report-metrics">
+        <div class="card"><div class="metric">{{ counts.submitted }}</div><div class="label">Requests Submitted</div></div>
+        <div class="card"><div class="metric">{{ counts.reserved }}</div><div class="label">Reservations Ready</div></div>
+        <div class="card"><div class="metric">{{ counts.borrowed }}</div><div class="label">Borrow Confirmations</div></div>
+        <div class="card"><div class="metric">{{ counts.returned }}</div><div class="label">Returns Processed</div></div>
+        <div class="card"><div class="metric">{{ counts.notices }}</div><div class="label">Shortage Notices</div></div>
+        <div class="card"><div class="metric">{{ counts.damaged_units }}</div><div class="label">Damaged Units</div></div>
+    </div>
+
+    <div class="panel">
+        <h2>Top 3 Borrowed Items Today</h2>
+        {% if top_borrowed %}
+        <table class="responsive-table top-borrow-table">
+            <thead><tr><th>Rank</th><th>Item</th><th>Type</th><th>Borrowed</th></tr></thead>
+            <tbody>
+            {% for item in top_borrowed %}
+                <tr>
+                    <td><strong>#{{ loop.index }}</strong></td>
+                    <td>{{ item["item_name"] }}</td>
+                    <td>{{ item["type"] }}</td>
+                    <td><strong>{{ item["total_borrowed"] }}</strong> units</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No items were borrowed on this date.</div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <h2>Activity Timeline</h2>
+        {% if events %}
+        <table class="responsive-table activity-table">
+            <thead><tr><th>Time</th><th>Activity</th><th>Project</th><th>Details</th></tr></thead>
+            <tbody>
+            {% for event in events %}
+                <tr>
+                    <td>{{ event.time }}</td>
+                    <td>{{ event.label }}</td>
+                    <td>{{ event.project_id or "—" }}</td>
+                    <td>{{ event.details or "—" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No activity recorded for {{ report_date }}.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

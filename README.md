@@ -1,167 +1,215 @@
-# RAI Student Project Item Allocator (IFP)
+﻿# RAI Student Project Item Allocator (IFP)
 
 > "Priorities always come first"
-> KMITL Robotics and AI Engineering (RAI) — data structures & algorithms course project
-> Team ROW: Thiradet Kurdsup, Sunhanat Panasjaroen, Siraphop William Wakeling
+>
+> KMITL Robotics and AI Engineering (RAI) - Data Structures & Algorithms project
 
-A web app that replaces the manual process RAI students use to request electronic
-components and tools. Students submit a project request; the system prioritizes
-requests by pick-up date, checks and reserves stock, tracks borrowed items and
-returns, tracks damaged items, and gives the admin a dashboard.
+A web application for RAI student project component and tool requests. Students search the real inventory, submit a project request, and check request status. The backend prioritizes projects, checks stock, handles admin approval, reservation, borrowing, returns, damaged items, and persistent storage.
 
-This is a DSA course project: the core structures — a min-heap, a hash table with
-chaining, a singly linked list, binary search, and merge sort — are all
-hand-implemented in [`ds/`](ds/) and [`algo/`](algo/), framework-free. Built-ins
-(`heapq`, `dict`, `sorted()`) are used only inside `tests/` as a correctness
-oracle to check the hand-implemented versions against.
+## Current Project Structure
+
+```text
+RAI_inventory/
+|
+|-- frontend/
+|   |-- templates/                 Jinja2/HTMX pages
+|   `-- static/                    CSS and images
+|
+|-- backend/
+|   |-- main.py                    FastAPI routes
+|   |-- allocator.py               request / reserve / borrow / return workflow
+|   |-- inventory.py               inventory operations and search
+|   |-- models.py                  domain models
+|   |-- notifications.py           console / SMTP notifications
+|   |
+|   |-- algor/
+|   |   |-- binary_search.py       Binary Search
+|   |   `-- merge_sort.py          Merge Sort
+|   |
+|   |-- data_struct/
+|   |   |-- min_heap.py            Main + Pending Min-Heap
+|   |   |-- hash_table.py          separate-chaining Hash Table
+|   |   `-- linked_list.py         damage Singly Linked List
+|   |
+|   `-- db/
+|       |-- database.py            SQLite persistence
+|       |-- app.db                 application database
+|       `-- Database_inven_RAI.xlsx real RAI inventory source
+|
+|-- test algor_data/               manual proof/demo versions of all required DSA
+|-- requirement.md                 project requirement + implementation update
+|-- DECISIONS.md                   implementation decisions
+|-- pyproject.toml                 project configuration
+|-- requirements.txt               Python dependencies
+`-- README.md                      this file
+```
+
+## Required Data Structures and Algorithms
+
+### Data Structures
+
+1. **Min-Heap**
+   - Main request queue.
+   - Pending request queue.
+   - Earlier pickup date has higher priority.
+   - Same pickup date uses earlier submission/request order.
+
+2. **Hash Table**
+   - Inventory lookup.
+   - Reserved project lookup.
+   - Borrowed project lookup.
+   - All-request lookup by Project ID.
+
+3. **Singly Linked List**
+   - Stores damaged returned-item records.
+
+### Algorithms
+
+1. **Binary Search**
+   - Searches the sorted inventory catalog.
+
+2. **Merge Sort**
+   - Creates ordered project/admin views.
+   - Also rebuilds the sorted inventory view without using Python `sorted()`.
+
+## Backend Workflow
+
+```text
+Student
+  |
+  v
+Search inventory
+  |
+  v
+Binary Search
+  |
+  v
+Submit request
+  |
+  v
+Main Min-Heap
+  |
+  v
+Inventory check using Hash Table
+  |
+  v
+Pending Min-Heap
+  |
+  v
+Admin selects highest-priority fulfillable request
+  |
+  v
+Approve and reserve inventory
+  |
+  v
+RESERVED
+  |
+  v
+Student collects items
+  |
+  v
+Reduce live stock
+  |
+  v
+Borrowed Hash Table
+  |
+  v
+Return
+  |-----------------------|
+  v                       v
+Good                    Damaged
+  |                       |
+  v                       v
+Increase inventory     Singly Linked List
+  |                       |
+  `-----------+-----------'
+              |
+              v
+      Re-check Pending Heap
+```
+
+The admin ordered project view uses **Merge Sort**.
+
+## Priority Rule
+
+Requests are prioritized by:
+
+1. Earlier requested pickup date.
+2. If pickup dates are equal, earlier submission time/request order.
+
+A higher-priority request that does not currently have enough stock stays Pending. The system can continue to the next highest-priority request that can actually be fulfilled.
+
+## Database
+
+The application uses SQLite for persistent storage:
+
+```text
+backend/db/app.db
+```
+
+The real RAI inventory source is:
+
+```text
+backend/db/Database_inven_RAI.xlsx
+```
+
+SQLite stores persistent state. On startup, the application rebuilds its working Min-Heaps, Hash Tables, and Singly Linked List from the stored data.
 
 ## Setup
 
-Requires Python 3.11+.
+From the repository root:
 
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate   # Windows Git Bash; use .venv/bin/activate on macOS/Linux
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-## Running the web app
+Or install the project and development dependencies with:
 
 ```bash
-uvicorn app.main:app --reload
+pip install -e ".[dev]"
 ```
 
-Open http://127.0.0.1:8000 — it redirects to `/login`, where you pick **Student**
-or **Admin** (a cookie remembers the choice; there's no real authentication, per
-the course scope). On first run it seeds the ~200-item catalog from
-[`data/inventory_seed.csv`](data/inventory_seed.csv) into `data/app.db` (SQLite);
-on every later run it rebuilds the in-memory heaps/hash tables/linked list from
-that database. Delete `data/app.db` to reset to a fresh seeded state.
+## Run the Website
 
-Student flow: **New Request** → search for components (binary search over the
-sorted catalog) → add items → submit. The request is reserved immediately if
-stock allows, or queued as Pending otherwise, and the student can check status
-at the URL shown (`/requests/<Project ID>`).
-
-Admin flow: **Borrowed** to confirm a handover (moves Reserved → Borrowed,
-reduces live stock) or release an unclaimed reservation; **Returns** to search a
-Project ID and record each item's returned quantity and condition (good stock is
-restocked, damaged stock is logged and never reused, and any now-satisfiable
-Pending requests are automatically promoted); **Admin View** for the full
-merge-sort priority listing; **Damaged Items** for the append-only damage log.
-
-### Email notifications
-
-Console/log fallback by default (prints `[NOTIFY] ...` lines to the terminal
-running uvicorn). To send real email instead, set:
+From the repository root:
 
 ```bash
-export RAI_SMTP_HOST=smtp.example.com
-export RAI_SMTP_PORT=587            # optional, defaults to 587
-export RAI_SMTP_USERNAME=...        # optional
-export RAI_SMTP_PASSWORD=...        # optional
-export RAI_SMTP_FROM=rai@kmitl.ac.th   # optional, defaults to username
-export RAI_SMTP_USE_TLS=false       # optional, defaults to true
+uvicorn backend.main:app --reload
 ```
 
-## CLI demo (no web server)
+Open:
 
-```bash
-python cli_demo.py
+```text
+http://127.0.0.1:8000
 ```
 
-Walks through the borrow/return workflow end-to-end in the terminal: loads the
-seeded inventory, submits three requests (two of which compete for the same
-scarce item, resolved by pick-up date then submission-time tie-break), drains
-the Main Min-Heap, shows the Reserved/Pending split and the merge-sorted admin
-view, confirms a handover, then processes a return (one good, one damaged) and
-shows the previously-Pending request get satisfied.
+## Manual DSA Proof
 
-## Algorithm demonstrations
+The `test algor_data/` folder contains simple manual implementations that are easy to run and explain during presentation.
 
-```bash
-python binary_search_demo.py
-python merge_sort_demo.py
+```text
+test algor_data/
+|-- Algorithms/
+|   |-- min_heaps.py
+|   |-- binary_search.py
+|   `-- merge_sort.py
+|-- Data_Structure/
+|   |-- hashtable.py
+|   `-- linked_list.py
+`-- Models/
 ```
 
-Standalone, dependency-free walkthroughs of the two required algorithms
-against mock data, with every result checked against a plain-Python oracle
-(linear scan for binary search, `sorted()` for merge sort) and printed
-PASS/FAIL as it goes -- including edge cases (empty/single-element input,
-duplicates, already-sorted input), a 200-trial randomized stress test each,
-and for merge sort a stability demo mirroring the admin priority view's
-same-pick-up-date tie-break.
+The production versions in `backend/algor/` and `backend/data_struct/` use the same core approach, but remove the manual `input()`, `print()`, and mock test data.
 
-Need something that runs completely on its own -- no repo, no venv, not
-even a `git clone`, just the Python standard library? `standalone_demo.py`
-is the same two demonstrations combined into one file with the algorithms
-copied inline instead of imported from `algo/`, so it runs unmodified from
-any directory on any machine with Python 3.11+:
+## Important Files
 
-```bash
-python standalone_demo.py
-```
-
-## Tests
-
-```bash
-pytest
-```
-
-105 tests across `tests/`: heap ordering/tie-break/delete-by-id/build,
-hash table collisions/resize/randomized-vs-`dict` oracle, linked list,
-binary search hits/misses/edges, merge sort stability, the inventory
-catalog, the full borrow/return allocator workflow (including a pending
-project getting satisfied after a return, and damaged items never
-re-entering stock), SQLite persistence and startup rebuild, email
-notifications, and FastAPI route tests via `TestClient`.
-
-## Benchmarks
-
-```bash
-python -m benchmarks.run_benchmarks
-```
-
-Reproduces the four complexity comparisons from the project brief, counting
-real operations (comparisons / array shifts / hash probes) rather than just
-wall-clock time — see [`benchmarks/counters.py`](benchmarks/counters.py) for
-how (a value wrapper that ticks a shared counter on every comparison, so the
-*actual* `ds/`/`algo/` code gets measured with no instrumentation added to the
-graded algorithms themselves). Prints a table and saves a bar chart per
-comparison to `benchmarks/output/` (git-ignored, regenerated each run):
-
-1. **Min-Heap vs unsorted array vs sorted array**, n=75 — insert cost and
-   find-highest-priority cost for each.
-2. **Hash Table vs array/linked-list lookup**, m=200.
-3. **Binary Search vs Linear Search**, m=200.
-4. **Merge Sort vs Bubble/Selection/Insertion/Quick Sort**, n=75, random input.
-
-## Project layout
-
-```
-ds/                  hand-implemented data structures (no framework deps)
-  heap.py              MinHeap: array-backed binary min-heap + O(log n) delete-by-id
-  hashtable.py         HashTable: separate chaining, FNV-1a hash, load-factor resize
-  linkedlist.py        SinglyLinkedList: O(1) append, O(n) traverse
-algo/                hand-implemented algorithms (no framework deps)
-  binary_search.py     binary_search_exact / lower_bound / upper_bound / prefix_search
-  merge_sort.py         stable O(n log n) merge sort
-app/                 the application built on top of ds/ and algo/
-  models.py             plain dataclasses (InventoryItem, ProjectRequest, ...)
-  inventory.py          InventoryCatalog: hash-table + sorted-array views of stock
-  allocator.py           Allocator: the borrow/return workflow (section 6 of the brief)
-  notifications.py       Notifier interface: console fallback + SMTP
-  db.py                  SQLite persistence: write-through + rebuild-on-startup
-  main.py                FastAPI app and routes
-  templates/, static/    Jinja2 + HTMX UI
-benchmarks/          operation-counting benchmarks + charts (section 11)
-tests/               pytest suite (105 tests)
-data/                inventory_seed.csv (~200 items) and app.db (git-ignored)
-cli_demo.py          terminal walkthrough of the borrow/return workflow
-binary_search_demo.py  binary search demo vs a linear-search oracle (imports algo/)
-merge_sort_demo.py     merge sort demo vs the sorted() oracle (imports algo/)
-standalone_demo.py     both demos combined, algorithms inlined -- zero dependencies
-```
-
-See [`DECISIONS.md`](DECISIONS.md) for choices that fill in the brief's open
-questions or otherwise deviate from a literal reading of it.
+- `requirement.md` - original project requirement plus a current implementation mapping.
+- `DECISIONS.md` - explains implementation choices and deviations.
+- `test algor_data/README.md` - complete system architecture diagram for the DSA workflow.

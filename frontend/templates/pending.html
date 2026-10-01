@@ -1,0 +1,88 @@
+﻿{% extends "base.html" %}
+{% block title %}Pending · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Pending Requests</h1>
+<p class="page-subtitle">
+    Requests wait here for admin approval. Stock is checked for readiness, but nothing is reserved until the admin approves a request.
+</p>
+
+{% if notified %}
+<div class="flash">Stock notification triggered for {{ notified }}.</div>
+{% endif %}
+
+<div class="panel">
+    <h2>Priority Queue</h2>
+    <p class="page-subtitle">
+        Priority is based on earliest pick-up date first. If two projects have the same pick-up date, the earlier submission comes first.
+    </p>
+
+    <table class="responsive-table pending-table">
+        <thead>
+            <tr>
+                <th>Priority</th>
+                <th>Group</th>
+                <th>Project</th>
+                <th>Student</th>
+                <th>Pick-up Date</th>
+                <th>Requested Items</th>
+                <th>Stock Check</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for req, shortages in analysis_rows %}
+            <tr class="{{ 'priority-top-row' if loop.first else '' }}">
+                <td>
+                    {% if loop.first %}
+                        <span class="badge badge-high">Highest Priority</span>
+                    {% else %}
+                        <strong>#{{ loop.index }}</strong>
+                    {% endif %}
+                </td>
+                <td>{{ req.group }}</td>
+                <td>
+                    <strong>{{ req.project_name }}</strong>
+                    <div class="meta">{{ req.project_id }}</div>
+                </td>
+                <td>{{ req.student_name }}{% if req.student_id %}<div class="meta">ID: {{ req.student_id }}</div>{% endif %}</td>
+                <td>{{ req.pick_up_date }}</td>
+                <td>
+                    {% for line in req.items %}
+                        <div>{{ line.item_name }} × {{ line.quantity }}</div>
+                    {% endfor %}
+                </td>
+                <td>
+                    {% if shortages %}
+                        <span class="badge badge-out">Not Enough Stock</span>
+                        <div class="algorithm-shortage">{{ shortages | join("; ") }}</div>
+                    {% else %}
+                        <span class="badge badge-available">Ready for Approval</span>
+                        <div class="meta">No stock has been reserved yet.</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if recommended and req.project_id == recommended.project_id %}
+                        <form method="post" action="/pending/{{ req.project_id }}/approve">
+                            <button class="btn small" type="submit">Approve &amp; Reserve</button>
+                        </form>
+                    {% elif shortages and req.student_email %}
+                        <form method="post" action="/pending/{{ req.project_id }}/notify-shortage">
+                            <button class="btn small notice-btn" type="submit">Resend Notice</button>
+                            <div class="meta notify-email">{{ req.student_email }}</div>
+                        </form>
+                    {% elif shortages %}
+                        <button class="btn small secondary" type="button" disabled>No Email</button>
+                    {% else %}
+                        <button class="btn small secondary" type="button" disabled>Wait for Priority</button>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="8" class="empty-state">No pending requests right now.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

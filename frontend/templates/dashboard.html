@@ -1,0 +1,124 @@
+﻿{% extends "base.html" %}
+{% block title %}Dashboard · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="page-subtitle">Live snapshot of the RAI component inventory and request pipeline.</p>
+
+<div class="cards">
+    <div class="card">
+        <div class="metric">{{ available_types }}</div>
+        <div class="label">Available Items ({{ total_items }} total types)</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ pending_count }}</div>
+        <div class="label">Pending Requests</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ reserved_count }}</div>
+        <div class="label">Ready for Pickup</div>
+    </div>
+    <div class="card">
+        <div class="metric">{{ borrowed_count }}</div>
+        <div class="label">Borrowed Projects</div>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="panel">
+        <h2>Out of Stock Items</h2>
+        {% if out_of_stock_items %}
+        <table class="responsive-table dashboard-stock-table">
+            <thead><tr><th>Type</th><th>Item</th><th>Available</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for item in out_of_stock_items %}
+                <tr class="{{ 'stock-out-row' if item.status.value == 'Out of Stock' else '' }}">
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.item_name }}</td>
+                    <td>{{ item.available_qty }} / {{ item.live_qty }}</td>
+                    <td><span class="badge badge-out">Out of Stock</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No items are out of stock right now.</div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <h2>Readiness for analysis</h2>
+        <table class="responsive-table dashboard-summary-table">
+            <tbody>
+                <tr><td>Remaining stock (all types)</td><td><strong>{{ remaining_stock }}</strong> units</td></tr>
+                <tr><td>Out of stock items</td><td><strong>{{ out_of_stock_items|length }}</strong></td></tr>
+                <tr><td>Requests waiting for stock</td><td><strong>{{ pending_count }}</strong> pending</td></tr>
+                <tr><td>Reserved and ready for pickup</td><td><strong>{{ reserved_count }}</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="panel">
+        <h2>Top 3 Borrowed Items</h2>
+        <p class="page-subtitle">Most borrowed items based on confirmed borrowing activity.</p>
+        {% if top_borrowed %}
+        <table class="responsive-table top-borrow-table">
+            <thead><tr><th>Rank</th><th>Item</th><th>Type</th><th>Total Borrowed</th></tr></thead>
+            <tbody>
+            {% for item in top_borrowed %}
+                <tr>
+                    <td><strong>#{{ loop.index }}</strong></td>
+                    <td>{{ item["item_name"] }}</td>
+                    <td>{{ item["type"] }}</td>
+                    <td><strong>{{ item["total_borrowed"] }}</strong> units</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No borrowing history yet.</div>
+        {% endif %}
+    </div>
+
+    <div class="panel report-action-panel">
+        <h2>Daily Activity Summary</h2>
+        <p class="page-subtitle">Generate today's admin report from request, borrow, return, damage, and shortage-notice activity.</p>
+        <div class="report-date">{{ report_date }}</div>
+        <a class="btn" href="/admin/daily-summary.docx?date_value={{ report_date }}">Generate Today's Summary</a>
+        <a class="btn secondary" href="/admin/daily-summary">Open Reports</a>
+    </div>
+</div>
+
+<div class="panel" style="margin-top:20px;">
+    <h2>Priority Request View</h2>
+    <p class="page-subtitle">Every request, ordered by pick-up date and submission time using Merge Sort.</p>
+    <table class="responsive-table dashboard-priority-table">
+        <thead><tr><th>Rank</th><th>Project ID</th><th>Name</th><th>Pick-up date</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for req, priority in rows %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ req.project_id }}</td>
+                <td>{{ req.project_name }} <span class="meta" style="color:var(--text-muted); font-size:12px;">({{ req.student_name }})</span></td>
+                <td>{{ req.pick_up_date }}</td>
+                <td>
+                    {% if priority == "High" %}<span class="badge badge-high">High</span>
+                    {% elif priority == "Medium" %}<span class="badge badge-medium">Medium</span>
+                    {% else %}<span class="badge badge-neutral">Low</span>{% endif %}
+                </td>
+                <td>
+                    {% if req.status.value == "Pending" %}<span class="badge badge-low">Pending</span>
+                    {% elif req.status.value == "Borrowed" %}<span class="badge badge-neutral">Borrowed</span>
+                    {% elif req.status.value == "Reserved" %}<span class="badge badge-available">Reserved</span>
+                    {% else %}<span class="badge badge-neutral">Returned</span>{% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="empty-state">No requests submitted yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

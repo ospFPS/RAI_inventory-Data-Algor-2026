@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ req.project_id }} · RAI Item Allocator{% endblock %}
+{% block content %}
+<h1>Request {{ req.project_id }}</h1>
+<p class="page-subtitle">{{ req.project_name }} · {{ req.group }} · {{ req.student_name }}{% if req.student_id %} · ID {{ req.student_id }}{% endif %}</p>
+
+<div class="panel status-hero">
+    {% if req.status.value == "Reserved" %}
+        <span class="badge badge-available">Reserved — ready for pickup</span>
+    {% elif req.status.value == "Pending" %}
+        <span class="badge badge-low">Pending: {{ req.pending_reason }}</span>
+    {% elif req.status.value == "Borrowed" %}
+        <span class="badge badge-neutral">Borrowed</span>
+    {% else %}
+        <span class="badge badge-neutral">Returned</span>
+    {% endif %}
+    <p class="page-subtitle" style="margin-top:12px;">Pick-up date: {{ req.pick_up_date }}</p>
+</div>
+
+<div class="panel">
+    <h2>Requested items</h2>
+    <table class="responsive-table request-items-table">
+        <thead><tr><th>Type</th><th>Item</th><th>Qty</th></tr></thead>
+        <tbody>
+        {% for line in req.items %}
+            <tr><td>{{ line.type }}</td><td>{{ line.item_name }}</td><td>{{ line.quantity }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p>Save this Project ID (<strong>{{ req.project_id }}</strong>) to check status or process a return later.</p>
+{% endblock %}
