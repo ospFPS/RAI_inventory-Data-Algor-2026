@@ -1,11 +1,3 @@
-﻿"""SQLite persistence (section 10 of the brief): the hand-implemented
-ds/ structures (heap, hash table, linked list) are the in-memory working
-structures used for every algorithmic operation; SQLite is only the
-durable copy they are rebuilt from on startup and written through to on
-every change, so the app survives a restart without re-deriving state
-from anywhere else.
-"""
-
 import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime
@@ -90,7 +82,6 @@ class Database:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(SCHEMA)
-        # Keep existing demo databases compatible when new request fields are added.
         request_columns = {
             row["name"] for row in self._conn.execute("PRAGMA table_info(requests)").fetchall()
         }
@@ -115,7 +106,6 @@ class Database:
         finally:
             cur.close()
 
-    # -- inventory -------------------------------------------------------
 
     def save_inventory_item(self, item: InventoryItem) -> None:
         with self._cursor() as cur:
@@ -148,7 +138,6 @@ class Database:
             for r in rows
         ]
 
-    # -- requests ----------------------------------------------------------
 
     def save_request(self, req: ProjectRequest) -> None:
         with self._cursor() as cur:
@@ -180,8 +169,6 @@ class Database:
             )
 
     def save_request_status(self, req: ProjectRequest) -> None:
-        """Cheaper than save_request() when only status/pending_reason
-        changed and the line items are unchanged."""
         with self._cursor() as cur:
             cur.execute(
                 "UPDATE requests SET status = ?, pending_reason = ? WHERE project_id = ?",
@@ -221,7 +208,6 @@ class Database:
             )
         return requests
 
-    # -- borrowed ------------------------------------------------------
 
     def save_borrowed(self, record: BorrowedRecord) -> None:
         with self._cursor() as cur:
@@ -262,7 +248,6 @@ class Database:
             for r in rows
         ]
 
-    # -- damage ----------------------------------------------------------
 
     def save_damage(self, record: DamageRecord) -> None:
         with self._cursor() as cur:
@@ -297,7 +282,6 @@ class Database:
             for r in rows
         ]
 
-    # -- activity / reporting --------------------------------------------
 
     def log_activity(
         self,
@@ -352,7 +336,6 @@ class Database:
         ).fetchone()
         return int(row["total"])
 
-    # -- sequence counter (Project ID generator) --------------------------
 
     def load_next_sequence(self) -> int:
         row = self._conn.execute(

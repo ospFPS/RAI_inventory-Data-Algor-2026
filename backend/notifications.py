@@ -1,9 +1,3 @@
-﻿"""Student email notifications for the RAI Item Allocator.
-
-If SMTP settings are present in the repository-root .env file, the app sends
-real email. Otherwise it falls back to console notifications for development.
-"""
-
 import os
 import smtplib
 from abc import ABC, abstractmethod
@@ -21,11 +15,11 @@ load_dotenv(ENV_PATH)
 class Notifier(ABC):
     @abstractmethod
     def notify_ready(self, request: ProjectRequest) -> None:
-        """Notify the student that the request is reserved and ready."""
+        pass
 
     @abstractmethod
     def notify_pending(self, request: ProjectRequest) -> None:
-        """Notify the student that the request is pending because of stock."""
+        pass
 
 
 class ConsoleNotifier(Notifier):

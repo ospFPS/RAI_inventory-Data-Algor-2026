@@ -122,7 +122,6 @@
                 return True
         return False
 
-    # Website aliases. The logic still uses insert/extract_min/remove_project.
     def push(self, item):
         self.insert(item)
 

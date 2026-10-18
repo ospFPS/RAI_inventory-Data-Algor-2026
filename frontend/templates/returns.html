@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Returns · RAI Item Allocator{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Returns ยท RAI Item Allocator{% endblock %}
 {% block content %}
 <h1>Returns</h1>
 <p class="page-subtitle">Search a borrowed project by ID, then record each item's returned quantity and condition.</p>
@@ -15,7 +15,7 @@
 
 {% if record %}
 <div class="panel">
-    <h2>{{ record.project_id }} — {{ record.project_name }} ({{ record.group }})</h2>
+    <h2>{{ record.project_id }} โ€” {{ record.project_name }} ({{ record.group }})</h2>
     <p class="page-subtitle">Handed over {{ record.handed_over_at.strftime("%Y-%m-%d %H:%M") }}</p>
 
     {% if role == "admin" %}
@@ -33,10 +33,10 @@
                     <td>
                         <input type="hidden" name="item_types" value="{{ line.type }}">
                         <input type="hidden" name="item_names" value="{{ line.item_name }}">
-                        <input type="number" name="good_quantities" min="0" max="{{ line.quantity }}" value="{{ line.quantity }}" style="width:70px;">
+                        <input type="number" name="good_quantities" min="0" max="{{ line.quantity }}" value="{{ line.quantity }}" class="return-qty">
                     </td>
-                    <td><input type="number" name="damaged_quantities" min="0" max="{{ line.quantity }}" value="0" style="width:70px;"></td>
-                    <td><input type="text" name="notes" placeholder="optional note" style="width:140px;"></td>
+                    <td><input type="number" name="damaged_quantities" min="0" max="{{ line.quantity }}" value="0" class="return-qty"></td>
+                    <td><input type="text" name="notes" placeholder="optional note" class="return-note"></td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -50,3 +50,4 @@
 </div>
 {% endif %}
 {% endblock %}
+

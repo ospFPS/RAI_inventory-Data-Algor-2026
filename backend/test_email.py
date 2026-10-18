@@ -1,5 +1,3 @@
-﻿"""Send one real test email using the SMTP settings in .env."""
-
 import os
 from datetime import date, datetime
 

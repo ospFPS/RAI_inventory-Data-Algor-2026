@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    <h2 style="margin-top:24px;">Add components / tools</h2>
+    <h2 class="section-heading">Add components / tools</h2>
     <div class="search-row">
         <input type="text" placeholder="Search by item name..." name="q"
                hx-get="/components/search" hx-trigger="keyup changed delay:250ms"
@@ -47,7 +47,7 @@
     <div id="search-results"></div>
 
     <div class="selected-items">
-        <h2 style="margin-top:24px;">Selected items</h2>
+        <h2 class="section-heading">Selected items</h2>
         <table id="selected-table" class="responsive-table selected-items-table">
             <thead><tr><th>Type</th><th>Item</th><th>Qty</th><th></th></tr></thead>
             <tbody id="selected-body">
@@ -63,52 +63,8 @@
     </div>
 </form>
 
-<script>
-let selectedItems = [];
-
-function renderSelected() {
-    const body = document.getElementById('selected-body');
-    const hidden = document.getElementById('hidden-items');
-    body.innerHTML = '';
-    hidden.innerHTML = '';
-    if (selectedItems.length === 0) {
-        body.innerHTML = '<tr id="empty-row"><td colspan="4" class="empty-state">No items added yet.</td></tr>';
-        return;
-    }
-    selectedItems.forEach((it, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${it.type}</td><td>${it.name}</td><td>${it.qty}</td>` +
-            `<td><button type="button" class="btn small secondary" onclick="removeItem(${idx})">Remove</button></td>`;
-        body.appendChild(tr);
-
-        hidden.innerHTML += `<input type="hidden" name="item_types" value="${it.type}">` +
-            `<input type="hidden" name="item_names" value="${it.name}">` +
-            `<input type="hidden" name="item_quantities" value="${it.qty}">`;
-    });
-}
-
-function addItem(type, name, qty) {
-    qty = parseInt(qty) || 1;
-    const existing = selectedItems.find(i => i.type === type && i.name === name);
-    if (existing) {
-        existing.qty += qty;
-    } else {
-        selectedItems.push({type, name, qty});
-    }
-    renderSelected();
-}
-
-function removeItem(idx) {
-    selectedItems.splice(idx, 1);
-    renderSelected();
-}
-
-document.getElementById('request-form').addEventListener('submit', function(e) {
-    if (selectedItems.length === 0) {
-        e.preventDefault();
-        alert('Add at least one component or tool before submitting.');
-    }
-});
-</script>
+<script src="/static/request.js" defer></script>
 {% endblock %}
+
+
 

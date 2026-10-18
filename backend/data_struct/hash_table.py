@@ -113,8 +113,6 @@ class HashTable:
 
         return False
 
-    # Website aliases. The underlying operations are William-style
-    # insert/search/delete with separate chaining through node.next.
     def put(self, key, value):
         self.insert(key, value)
 

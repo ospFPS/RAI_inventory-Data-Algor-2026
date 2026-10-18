@@ -1,11 +1,3 @@
-﻿"""FastAPI + Jinja2/HTMX web app (section 8 of the brief).
-
-Single-process demo app: one Allocator/Database live in app.state, built
-once at startup (rebuilt from SQLite if data already exists, otherwise
-seeded from the real RAI XLSX inventory workbook). Role is a simple cookie set by /login (section 13
-default: two hard-coded roles, no real auth).
-"""
-
 import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -91,7 +83,6 @@ def ctx(request: Request, role: str, **extra) -> dict:
     return {"role": role, "active_nav": extra.pop("active_nav", ""), **extra}
 
 
-# -- auth / role switch --------------------------------------------------
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -114,7 +105,6 @@ def root():
     return RedirectResponse(url="/login")
 
 
-# -- dashboard -------------------------------------------------------------
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -158,7 +148,6 @@ def dashboard(
     )
 
 
-# -- daily activity reports ---------------------------------------------------
 
 
 def _parse_report_day(date_value: str) -> date:
@@ -315,7 +304,6 @@ def download_daily_summary_word(
     )
 
 
-# -- new request -------------------------------------------------------------
 
 
 @app.get("/new-request", response_class=HTMLResponse)
@@ -337,8 +325,6 @@ def search_components(
     role: str = Depends(get_role),
     alloc: Allocator = Depends(get_allocator),
 ):
-    # Selecting a Type should immediately show the components/tools that
-    # belong to that type, even when the search box is empty.
     if q.strip() or type:
         results = alloc.catalog.search_by_name_prefix(
             q,
@@ -415,7 +401,6 @@ def request_status(
     )
 
 
-# -- inventory ---------------------------------------------------------------
 
 
 @app.get("/inventory", response_class=HTMLResponse)
@@ -444,9 +429,6 @@ def inventory_search(
     role: str = Depends(get_role),
     alloc: Allocator = Depends(get_allocator),
 ):
-    # Same behavior as the New Request selector: choosing a Type immediately
-    # shows every inventory item that belongs to that Type. Typing a name
-    # narrows the results inside the selected Type.
     if q.strip():
         items = alloc.catalog.search_by_name_prefix(q, type_=type or None)
     elif type:
@@ -461,7 +443,6 @@ def inventory_search(
     )
 
 
-# -- pending -------------------------------------------------------------
 
 
 @app.get("/pending", response_class=HTMLResponse)
@@ -474,8 +455,6 @@ def pending_page(
     if role != "admin":
         return RedirectResponse(url="/new-request", status_code=303)
 
-    # Refresh stock readiness for all requests. This never reserves stock;
-    # admin approval is still required before a request becomes Reserved.
     alloc.recheck_pending()
     recommended, analysis_rows = alloc.analyze_pending_priorities()
 
@@ -538,7 +517,6 @@ def notify_pending_shortage(
     )
 
 
-# -- reserved / borrowed / returns -----------------------------------------
 
 
 @app.post("/reserved/{project_id}/confirm-handover")
@@ -554,7 +532,6 @@ def confirm_reserved_handover(
     return RedirectResponse(url="/borrowed", status_code=303)
 
 
-# -- borrowed / returns --------------------------------------------------
 
 
 @app.get("/borrowed", response_class=HTMLResponse)
@@ -619,7 +596,6 @@ def do_return(
     return RedirectResponse(url="/borrowed", status_code=303)
 
 
-# -- damaged items -------------------------------------------------------
 
 
 @app.get("/damaged", response_class=HTMLResponse)
@@ -634,7 +610,6 @@ def damaged_page(request: Request, role: str = Depends(get_role), alloc: Allocat
     )
 
 
-# -- admin view ------------------------------------------------------------
 
 
 @app.get("/admin")

@@ -1,8 +1,3 @@
-"""Plain domain dataclasses shared across the inventory, allocator, and
-web layers. No framework dependencies here on purpose -- these mirror the
-SQLite schema and are what the hand-implemented ds/ structures store.
-"""
-
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
@@ -26,21 +21,17 @@ class InventoryItem:
 
     @property
     def status(self) -> ItemStatus:
-        # We only classify states the real inventory data can determine
-        # objectively. A positive quantity is Available; zero is Out of Stock.
         if self.available_qty <= 0:
             return ItemStatus.OUT_OF_STOCK
         return ItemStatus.AVAILABLE
 
     @property
     def key(self) -> tuple[str, str]:
-        """Hash table / binary search key: (type, item_name)."""
         return (self.type, self.item_name)
 
 
 @dataclass
 class RequestLineItem:
-    """One requested component/tool line within a ProjectRequest."""
 
     type: str
     item_name: str
@@ -70,8 +61,6 @@ class ProjectRequest:
 
     @property
     def heap_key(self) -> tuple[date, datetime]:
-        """(pick_up_date, submitted_at) -- earliest date wins; ties broken
-        by earlier submission time, per section 5/13 of the brief."""
         return (self.pick_up_date, self.submitted_at)
 
 
@@ -93,9 +82,6 @@ class BorrowedRecord:
 
 @dataclass
 class ReturnLineItem:
-    """One line of a return: how much of one borrowed item came back in
-    a given condition. A single borrowed item can be split across two
-    ReturnLineItems (e.g. 3 good + 2 damaged out of 5 borrowed)."""
 
     type: str
     item_name: str

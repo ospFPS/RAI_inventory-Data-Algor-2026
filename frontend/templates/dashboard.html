@@ -90,7 +90,7 @@
     </div>
 </div>
 
-<div class="panel" style="margin-top:20px;">
+<div class="panel section-spaced">
     <h2>Priority Request View</h2>
     <p class="page-subtitle">Every request, ordered by pick-up date and submission time using Merge Sort.</p>
     <table class="responsive-table dashboard-priority-table">
@@ -100,7 +100,7 @@
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ req.project_id }}</td>
-                <td>{{ req.project_name }} <span class="meta" style="color:var(--text-muted); font-size:12px;">({{ req.student_name }})</span></td>
+                <td>{{ req.project_name }} <span class="meta muted-meta">({{ req.student_name }})</span></td>
                 <td>{{ req.pick_up_date }}</td>
                 <td>
                     {% if priority == "High" %}<span class="badge badge-high">High</span>
@@ -121,4 +121,5 @@
     </table>
 </div>
 {% endblock %}
+
 

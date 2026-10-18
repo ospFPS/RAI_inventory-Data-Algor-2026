@@ -645,3 +645,9 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
     .content { width: min(calc(100% - 64px), 1120px); }
 }
 
+.section-heading { margin-top: 24px; }
+.section-spaced { margin-top: 20px; }
+.section-top { margin-top: 12px; }
+.muted-meta { color: var(--text-muted); font-size: 12px; }
+.return-qty { width: 70px !important; }
+.return-note { width: 140px !important; }

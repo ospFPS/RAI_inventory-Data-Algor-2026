@@ -1,15 +1,14 @@
-{% if results %}
+﻿{% if results %}
 <div class="result-list">
     {% for item in results %}
-    <div class="result-item {{ 'stock-out-card' if item.status.value == 'Out of Stock' else '' }}">
+    <div data-type="{{ item.type }}" data-name="{{ item.item_name }}" class="result-item {{ 'stock-out-card' if item.status.value == 'Out of Stock' else '' }}">
         <div>
             <strong>{{ item.item_name }}</strong>
-            <div class="meta">{{ item.type }} · available {{ item.available_qty }} / {{ item.live_qty }}{% if item.status.value == "Out of Stock" %} · OUT OF STOCK{% endif %}</div>
+            <div class="meta">{{ item.type }} ยท available {{ item.available_qty }} / {{ item.live_qty }}{% if item.status.value == "Out of Stock" %} ยท OUT OF STOCK{% endif %}</div>
         </div>
         <div>
-            <input type="number" min="1" max="{{ item.available_qty if item.available_qty > 0 else 1 }}" value="1" id="qty-{{ loop.index }}">
-            <button type="button" class="btn small"
-                onclick="addItem('{{ item.type|e }}', '{{ item.item_name|e }}', document.getElementById('qty-{{ loop.index }}').value)">
+            <input class="item-qty" type="number" min="1" max="{{ item.available_qty if item.available_qty > 0 else 1 }}" value="1" id="qty-{{ loop.index }}">
+            <button type="button" class="btn small add-item">
                 Add
             </button>
         </div>
@@ -19,3 +18,4 @@
 {% else %}
 <div class="empty-state">No matching components. Try a different search term.</div>
 {% endif %}
+

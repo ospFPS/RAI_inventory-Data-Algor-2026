@@ -1,12 +1,12 @@
-{% extends "base.html" %}
-{% block title %}{{ req.project_id }} · RAI Item Allocator{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}{{ req.project_id }} ยท RAI Item Allocator{% endblock %}
 {% block content %}
 <h1>Request {{ req.project_id }}</h1>
-<p class="page-subtitle">{{ req.project_name }} · {{ req.group }} · {{ req.student_name }}{% if req.student_id %} · ID {{ req.student_id }}{% endif %}</p>
+<p class="page-subtitle">{{ req.project_name }} ยท {{ req.group }} ยท {{ req.student_name }}{% if req.student_id %} ยท ID {{ req.student_id }}{% endif %}</p>
 
 <div class="panel status-hero">
     {% if req.status.value == "Reserved" %}
-        <span class="badge badge-available">Reserved — ready for pickup</span>
+        <span class="badge badge-available">Reserved โ€” ready for pickup</span>
     {% elif req.status.value == "Pending" %}
         <span class="badge badge-low">Pending: {{ req.pending_reason }}</span>
     {% elif req.status.value == "Borrowed" %}
@@ -14,7 +14,7 @@
     {% else %}
         <span class="badge badge-neutral">Returned</span>
     {% endif %}
-    <p class="page-subtitle" style="margin-top:12px;">Pick-up date: {{ req.pick_up_date }}</p>
+    <p class="page-subtitle section-top">Pick-up date: {{ req.pick_up_date }}</p>
 </div>
 
 <div class="panel">
@@ -31,3 +31,4 @@
 
 <p>Save this Project ID (<strong>{{ req.project_id }}</strong>) to check status or process a return later.</p>
 {% endblock %}
+

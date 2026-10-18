@@ -1,8 +1,8 @@
-{% extends "base.html" %}
-{% block title %}Admin View · RAI Item Allocator{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Admin View ยท RAI Item Allocator{% endblock %}
 {% block content %}
 <h1>Admin Priority View</h1>
-<p class="page-subtitle">Every request, ordered by merge sort on (pick-up date, submission time) — the same priority order the queue uses.</p>
+<p class="page-subtitle">Every request, ordered by merge sort on (pick-up date, submission time) โ€” the same priority order the queue uses.</p>
 
 <div class="panel">
     <table>
@@ -12,7 +12,7 @@
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ req.project_id }}</td>
-                <td>{{ req.project_name }} <span class="meta" style="color:var(--text-muted); font-size:12px;">({{ req.group }})</span></td>
+                <td>{{ req.project_name }} <span class="meta muted-meta">({{ req.group }})</span></td>
                 <td>{{ req.pick_up_date }}</td>
                 <td>
                     {% if priority == "High" %}<span class="badge badge-high">High</span>
@@ -33,3 +33,4 @@
     </table>
 </div>
 {% endblock %}
+

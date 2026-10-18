@@ -1,27 +1,3 @@
-﻿"""The Allocator ties the hand-implemented data structures together into
-the borrow/return workflow described in section 6 of the brief:
-
-    Main Min-Heap      -- queued requests not yet processed, keyed by
-                           (pick_up_date, submitted_at)
-    Pending Min-Heap    -- submitted requests awaiting admin approval,
-                           keyed by the same priority; shortage requests stay here too
-    reserved (HashTable) -- requests whose items are reserved and ready for
-                             student pickup, keyed by Project ID
-    borrowed (HashTable) -- admin-confirmed projects, keyed by Project ID
-    damaged (SinglyLinkedList) -- append-only damage log (return workflow)
-    all_requests (HashTable) -- every request ever submitted, keyed by
-                                 Project ID, for the admin merge-sort view
-                                 and general lookup regardless of state
-
-Current workflow keeps admin approval as the reservation gate. Each submission
-enters the Main Min-Heap, is extracted in priority order, and then waits in the
-Pending Min-Heap. Stock is checked for readiness, but nothing is reserved yet.
-The highest-priority fulfillable request can be approved by the admin; only then
-are items reserved and the project becomes Reserved/ready for pickup. Stock is
-reduced only when the admin confirms physical collection. Returns only refresh
-Pending readiness; they never reserve anything without admin approval.
-"""
-
 from datetime import datetime
 
 from backend.algor.merge_sort import merge_sort
@@ -72,10 +48,6 @@ class Allocator:
 
     @classmethod
     def from_db(cls, db: Database, notifier: Notifier | None = None) -> "Allocator":
-        """Rebuild every in-memory ds/ structure from SQLite on startup.
-        The Main heap always starts empty: add_request()+process_main_queue()
-        run back-to-back within one call, so nothing should ever be left
-        sitting unprocessed in it between requests."""
         catalog = InventoryCatalog()
         catalog.bulk_load(db.load_inventory_items())
         allocator = cls(catalog, notifier=notifier, db=db)
@@ -95,7 +67,6 @@ class Allocator:
 
         return allocator
 
-    # -- persistence helpers ----------------------------------------------
 
     def _persist_item(self, type_: str, item_name: str) -> None:
         if self.db is None:
@@ -110,7 +81,6 @@ class Allocator:
         for line in lines:
             self._persist_item(line.type, line.item_name)
 
-    # -- request intake --------------------------------------------------
 
     def _generate_project_id(self) -> str:
         pid = f"P{self._next_seq:04d}"
@@ -130,11 +100,6 @@ class Allocator:
         student_id: str = "",
         submitted_at: datetime | None = None,
     ) -> ProjectRequest:
-        """Create a request and push it onto the Main Min-Heap, without
-        processing it yet. Useful for batch-loading several requests
-        before a single process_main_queue() call, e.g. in the CLI demo,
-        so priority ordering actually has multiple candidates to pick
-        between."""
         req = ProjectRequest(
             project_id=self._generate_project_id(),
             project_name=project_name,
@@ -160,23 +125,12 @@ class Allocator:
         return req
 
     def submit_request(self, *args, **kwargs) -> ProjectRequest:
-        """Create a request, enqueue it, then move it into the approval queue.
-
-        Submission never reserves inventory. The request waits in the Pending
-        Min-Heap until an admin approves the highest-priority fulfillable one.
-        """
         req = self.add_request(*args, **kwargs)
         self.process_main_queue()
         return req
 
-    # -- main queue processing -------------------------------------------
 
     def process_main_queue(self) -> None:
-        """Extract Main Min-Heap requests in priority order into approval queue.
-
-        This step performs a stock readiness check only. It does not reserve or
-        reduce inventory. Every request waits for explicit admin approval.
-        """
         while not self.main_heap.is_empty():
             req = self.main_heap.extract_min()
             shortages = self._find_shortages(req)
@@ -197,29 +151,25 @@ class Allocator:
                 self.notifier.notify_pending(req)
 
     def _find_shortages(self, req: ProjectRequest) -> list[str]:
-        shortages = []
+        totals: dict[tuple[str, str], int] = {}
         for line in req.items:
-            item = self.catalog.get(line.type, line.item_name)
+            key = (line.type, line.item_name)
+            totals[key] = totals.get(key, 0) + line.quantity
+
+        shortages = []
+        for (type_, name), quantity in totals.items():
+            item = self.catalog.get(type_, name)
             if item is None:
-                shortages.append(f"{line.item_name}: not in catalog")
-            elif item.available_qty < line.quantity:
+                shortages.append(f"{name}: not in catalog")
+            elif item.available_qty < quantity:
                 shortages.append(
-                    f"{line.item_name}: need {line.quantity}, have {item.available_qty}"
+                    f"{name}: need {quantity}, have {item.available_qty}"
                 )
         return shortages
 
     def analyze_pending_priorities(
         self,
     ) -> tuple[ProjectRequest | None, list[tuple[ProjectRequest, list[str]]]]:
-        """Run the requirement.md priority workflow without changing state.
-
-        A temporary Min-Heap copy is popped in priority order using
-        (pick_up_date, submitted_at). For each project, inventory is checked
-        through InventoryCatalog.get(), which uses the custom HashTable.
-        The first project with enough stock is returned as the project the
-        algorithm recommends for admin confirmation. Higher-priority projects
-        that are short on stock remain Pending and are shown with shortages.
-        """
         if self.pending_heap.is_empty():
             return None, []
 
@@ -241,11 +191,6 @@ class Allocator:
         return recommended, analysis
 
     def notify_stock_shortage(self, project_id: str) -> ProjectRequest:
-        """Resend a stock-shortage notification for one Pending request.
-
-        Initial shortage notifications are automatic when the request enters
-        Pending. This method lets an admin resend the current shortage notice.
-        """
         if project_id not in self.pending_heap:
             raise KeyError(f"project not in Pending state: {project_id}")
 
@@ -268,14 +213,8 @@ class Allocator:
         self.notifier.notify_pending(req)
         return req
 
-    # -- admin approval / handover ---------------------------------------
 
     def approve_pending_request(self, project_id: str) -> ProjectRequest | None:
-        """Admin approves one Pending request and reserves its items.
-
-        Nothing is reserved before this method is called. If stock changed and
-        is now insufficient, the request remains Pending with a shortage reason.
-        """
         if project_id not in self.pending_heap:
             raise KeyError(f"project not in Pending state: {project_id}")
 
@@ -304,13 +243,10 @@ class Allocator:
             )
         self.notifier.notify_ready(req)
 
-        # The newly approved reservation can change readiness for later requests.
         self.recheck_pending()
         return req
 
     def confirm_handover(self, project_id: str) -> BorrowedRecord:
-        """Admin confirms the student physically collected a Reserved
-        project: reduce live stock and move it into the Borrowed table."""
         if project_id not in self.reserved:
             raise KeyError(f"project not in Reserved state: {project_id}")
         req = self.reserved.delete(project_id)
@@ -341,8 +277,6 @@ class Allocator:
         return record
 
     def release_reservation(self, project_id: str) -> ProjectRequest:
-        """Admin manually releases a Reserved project that was never
-        collected (section 13 default for uncollected reservations)."""
         if project_id not in self.reserved:
             raise KeyError(f"project not in Reserved state: {project_id}")
         req = self.reserved.delete(project_id)
@@ -357,16 +291,10 @@ class Allocator:
             self.db.save_request_status(req)
         return req
 
-    # -- returns ---------------------------------------------------------
 
     def process_return(
         self, project_id: str, return_items: list[ReturnLineItem]
     ) -> list[DamageRecord]:
-        """Return workflow (section 6.2): validate the return accounts
-        for exactly what was borrowed, restock good-condition items,
-        log damaged ones to the Damage linked list (never restocked),
-        remove the project from Borrowed, then re-check the Pending
-        heap since stock just changed."""
         if project_id not in self.borrowed:
             raise KeyError(f"project not in Borrowed state: {project_id}")
         record = self.borrowed.search(project_id)
@@ -439,12 +367,6 @@ class Allocator:
             )
 
     def recheck_pending(self) -> None:
-        """Refresh readiness for Pending requests without reserving anything.
-
-        Admin approval remains mandatory. A stock change can turn a request
-        from Ready into Shortage, or vice versa, but its status stays Pending
-        until approve_pending_request() is called.
-        """
         ordered = merge_sort(self.pending_heap.to_list(), key_func=_heap_key)
         for req in ordered:
             previous_reason = req.pending_reason
@@ -455,7 +377,6 @@ class Allocator:
             if self.db is not None:
                 self.db.save_request_status(req)
 
-            # Notify only when a previously-ready request becomes short.
             if shortages and previous_reason == "Awaiting admin approval":
                 if self.db is not None:
                     self.db.log_activity(
@@ -465,11 +386,8 @@ class Allocator:
                     )
                 self.notifier.notify_pending(req)
 
-    # -- admin view ----------------------------------------------------
 
     def admin_ordered_view(self) -> list[ProjectRequest]:
-        """Every known request, merge-sorted by (pick_up_date,
-        submitted_at) -- the stable O(n log n) admin priority view."""
         return merge_sort(list(self.all_requests.values()), key_func=_heap_key)
 
 
