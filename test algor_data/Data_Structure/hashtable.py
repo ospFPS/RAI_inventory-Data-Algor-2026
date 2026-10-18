@@ -6,6 +6,7 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from Models.project import Project
+from mock_data import mock_stock
 
 
 class HashNode:
@@ -218,8 +219,7 @@ class InventoryTable:
                 print("None")
 
 
-# Borrowed project testing
-# Item names and quantities below are based on real rows in data/app.db.
+# Fictional student projects use actual item names from the Excel workbook.
 p1 = Project(
     "P0001",
     "66000001",
@@ -302,15 +302,15 @@ else:
     print("Project not found.")
 
 
-# Inventory hash table testing
-# These are real item names and live quantities read from data/app.db.
+# Stock quantities below come directly from Excel, but the demo uses a mock Hash Table.
 Inventory = InventoryTable()
-Inventory.insert_item("Screw driver set", 419)
-Inventory.insert_item("Current Sensor ACS712T ELC-20A", 16)
-Inventory.insert_item("Current sensor (ACS712)", 1)
-Inventory.insert_item("Form2 3D Printer", 1)
-Inventory.insert_item("Wireless HDMI Extender", 1)
-Inventory.insert_item("Wireless HDMI Extender Kits", 2)
+excel_stock = mock_stock(
+    "Screw driver set", "Current Sensor ACS712T ELC-20A",
+    "Current sensor (ACS712)", "Form2 3D Printer",
+    "Wireless HDMI Extender", "Wireless HDMI Extender Kits"
+)
+for name, quantity in excel_stock.items():
+    Inventory.insert_item(name, quantity)
 
 print("\nOriginal Inventory:")
 Inventory.display()

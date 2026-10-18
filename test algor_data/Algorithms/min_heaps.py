@@ -6,6 +6,7 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from Models.project import Project
+from mock_data import mock_stock
 
 
 class MinHeap:
@@ -256,12 +257,10 @@ pending_heap = MinHeap()
 project_manager = ProjectManager(main_heap)
 
 
-# Real item names and quantities read from data/app.db.
-inventory = {
-    "Form2 3D Printer": 1,
-    "Wireless HDMI Extender Kits": 2,
-    "Screw driver set": 419
-}
+# In-memory mock inventory seeded from actual item names and quantities in the XLSX.
+inventory = mock_stock(
+    "Form2 3D Printer", "Wireless HDMI Extender Kits", "Screw driver set"
+)
 
 
 # For testing
@@ -331,8 +330,8 @@ print("\nPending Min-Heap:")
 pending_heap.display()
 
 
-# Simulate returned stock.
-print("\n2 Form2 3D Printers returned to inventory.")
+# Simulate extra mock stock (separate from the read-only Excel source).
+print("\nMock replenishment: 2 Form2 3D Printers.")
 inventory["Form2 3D Printer"] += 2
 print("Form2 3D Printer =", inventory["Form2 3D Printer"])
 
@@ -353,9 +352,8 @@ for item_name, quantity in inventory.items():
     print(item_name, "=", quantity)
 
 
-# P0001 is still waiting because it needs 4 printers.
-# Add 4 printers so it can now be fulfilled.
-print("\n4 more Form2 3D Printers returned to inventory.")
+# Increase only the in-memory stock so P0001 can be fulfilled.
+print("\nMock replenishment: 4 more Form2 3D Printers.")
 inventory["Form2 3D Printer"] += 4
 print("Form2 3D Printer =", inventory["Form2 3D Printer"])
 

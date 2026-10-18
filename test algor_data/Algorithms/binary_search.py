@@ -5,7 +5,7 @@ TEST_ROOT = Path(__file__).resolve().parents[1]
 if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
-from Models.item import Item
+from mock_data import load_mock_items
 
 
 def binary_search(inventory, item_type, item_name):
@@ -38,56 +38,16 @@ def binary_search(inventory, item_type, item_name):
     return None, checks
 
 
-# For testing
-# Real item names and quantities read from data/app.db.
-# The list is already sorted by Type and Item Name.
-inventory = [
-    Item(
-        "3D Printer",
-        "Form2 3D Printer",
-        1
-    ),
-    Item(
-        "3D Printer",
-        "Fullscale XT 3D Printer",
-        1
-    ),
-    Item(
-        "AV Extender",
-        "Wireless HDMI Extender",
-        1
-    ),
-    Item(
-        "AV Extender",
-        "Wireless HDMI Extender Kits",
-        2
-    ),
-    Item(
-        "Sensor",
-        "Current Sensor ACS712T ELC-20A",
-        16
-    ),
-    Item(
-        "Sensor",
-        "Current sensor (ACS712)",
-        1
-    ),
-    Item(
-        "Tool",
-        "Mini Screw Driver Set",
-        13
-    ),
-    Item(
-        "Tool",
-        "Screw driver set",
-        419
-    )
-]
+# The search demo uses all real Excel inventory rows copied into mock memory.
+inventory = sorted(
+    load_mock_items(),
+    key=lambda item: (item.item_type.lower(), item.item_name.lower())
+)
 
-
-print("Inventory:")
-for item in inventory:
+print(f"Excel-backed mock inventory: {len(inventory)} items")
+for item in inventory[:12]:
     print(item)
+print("... (showing first 12; all items are searchable)")
 
 
 item_type = input("\nEnter item type: ")

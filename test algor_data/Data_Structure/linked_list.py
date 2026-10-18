@@ -6,6 +6,7 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from Models.damage import DamageItem
+from mock_data import mock_stock
 
 
 class DamageNode:
@@ -66,24 +67,26 @@ class DamageList:
         return results
 
 
-# For testing
-# Real item names are used from data/app.db.
+# Simulated damage records use real item names from Excel, not real damage history.
+item_names = list(mock_stock(
+    "Form2 3D Printer", "Current sensor (ACS712)", "Wireless HDMI Extender"
+))
 d1 = DamageItem(
-    "Form2 3D Printer",
+    item_names[0],
     "P0001",
     "Build plate is damaged",
     "2026-10-10"
 )
 
 d2 = DamageItem(
-    "Current sensor (ACS712)",
+    item_names[1],
     "P0002",
     "Sensor gives incorrect reading",
     "2026-10-11"
 )
 
 d3 = DamageItem(
-    "Wireless HDMI Extender",
+    item_names[2],
     "P0003",
     "No video signal",
     "2026-10-12"

@@ -6,6 +6,7 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from Models.project import Project
+from mock_data import mock_stock
 
 
 def is_higher_priority(project1, project2):
@@ -63,7 +64,14 @@ def merge_sort(projects):
     )
 
 
-# For testing
+# These are fictional student projects using real item names from the Excel workbook.
+# Their requested quantities are demo scenarios, not actual university loans.
+excel_stock = mock_stock(
+    "Form2 3D Printer", "Wireless HDMI Extender Kits",
+    "Screw driver set", "Current sensor (ACS712)"
+)
+assert all(quantity > 0 for quantity in excel_stock.values())
+
 # The projects are deliberately not in priority order.
 p1 = Project(
     "P0001",

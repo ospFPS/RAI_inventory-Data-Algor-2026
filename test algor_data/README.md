@@ -200,3 +200,35 @@ Inventory    Singly Linked List
 
 Admin project list -> Merge Sort -> Ordered view
 ```
+
+## Excel-backed Mock Data (Manual Algorithm Demos)
+
+The standalone demos in this folder now build their **mock inventory in memory** from the real
+`backend/db/Database_inven_RAI.xlsx` workbook, via `mock_data.py`. This loader reuses the
+application's `InventoryCatalog.load_xlsx()` import logic, including the inventory quantities.
+The workbook is read-only and the demos never access or modify `backend/db/app.db`.
+
+- **Real from Excel:** Component/tool names, types, and starting stock quantities.
+- **Mock only:** Student/project names, student IDs, requested amounts, damage events, and
+  simulated stock replenishment. The demonstrations do not represent real student loans.
+- **Binary Search:** Runs against all imported inventory records (not just a few examples).
+- **Merge Sort, Min-Heaps, Hash Table, Linked List:** Use actual Excel item names; the
+  inventory quantity demonstrations use values loaded from that workbook.
+
+These standalone scripts are for explaining each algorithm/data structure. In particular,
+`Algorithms/min_heaps.py` illustrates a simplified queue-and-stock simulation; the **live
+website** separately requires an admin to approve reservations and confirm handover.
+
+To run all verification tests from the repository root (Windows PowerShell):
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s "test algor_data" -p "test_*.py" -v
+```
+
+For the interactive search demonstration:
+
+```powershell
+.\.venv\Scripts\python.exe "test algor_data\Algorithms\binary_search.py"
+```
+
+Try `Tool` and `Screw driver set`, or any valid type/item name in the workbook.
